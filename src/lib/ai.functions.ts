@@ -343,6 +343,8 @@ export async function runEmployeeTurn(
     const intent = chatIntent(data.message);
     /** طلب صورة صريح من المستخدم: تُولَّد صورة فعلية أياً كان الموظف. */
     const explicitImage = intent === "work" && wantsImageRequest(data.message);
+    /** البثّ الحقيقي للطلبات الصريحة فقط — الأسئلة والدردشة تُجاب فوراً بلا بثّ. */
+    const streaming = emit !== noEmit && intent === "work";
     // عقل الخبير: عمق التخصص + سؤال واحد بخيارات عند الغموض الجوهري فقط.
     const { expertMindBlock } = await import("./expert-mind");
 
