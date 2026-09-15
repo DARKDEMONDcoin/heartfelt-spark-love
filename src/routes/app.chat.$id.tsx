@@ -730,21 +730,41 @@ function ChatView({
           : conversationId;
       if (startingNewConversation || !conversationId) setConversationId(activeConversationId);
       setStartingNewConversation(false);
-      const result = await ask({
-        data: {
-          workspaceId: workspace!.id,
-          employeeId: id,
-          conversationId: activeConversationId,
-          message,
-          attachments,
-          imageMode,
-          imagePrompt: imagePrompt.trim() || undefined,
-          imageAspect: aspect,
-          postLength,
-        },
-      });
-      return { result, activeConversationId };
+      const payload = {
+        workspaceId: workspace!.id,
+        employeeId: id,
+        conversationId: activeConversationId,
+        message,
+        attachments,
+        imageMode,
+        imagePrompt: imagePrompt.trim() || undefined,
+        imageAspect: aspect,
+        postLength,
+      };
+
+      // البثّ الحقيقي: مراحل التنفيذ الفعلية ثم نص الرد وهو يُكتب.
+      // الأسئلة والدردشة لا تبثّ شيئاً — تصل كاملة مرة واحدة.
+      try {
+        const result = await streamEmployeeTurn(payload, {
+          onStep: (label) => {
+            if (!cancelledRef.current) setLiveStep(label);
+          },
+          onDelta: (text) => {
+            if (!cancelledRef.current) setLiveText((prev) => prev + text);
+          },
+          onReset: () => setLiveText(""),
+        });
+        return { result, activeConversationId };
+      } catch (streamError) {
+        // انقطاع البثّ لا يُفقد المستخدم رده: نعيد الطلب بالمسار العادي.
+        console.warn("[chat] stream failed, falling back:", streamError);
+        setLiveStep(null);
+        setLiveText("");
+        const result = await ask({ data: payload });
+        return { result, activeConversationId };
+      }
     },
+
 
     onSuccess: async ({ result: res, activeConversationId }) => {
       await qc.invalidateQueries({
