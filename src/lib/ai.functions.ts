@@ -492,6 +492,8 @@ export async function runEmployeeTurn(
       liveBlock,
       intentBlock(intent),
       coworkerVoiceBlock({
+        employeeId: data.employeeId,
+        firstEver: firstEverTurn,
         employeeName: persona.name,
         role: persona.role,
         userName: ownerFirstName,
