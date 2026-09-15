@@ -15427,7 +15427,7 @@ section:has(> .integration-grid-wave) {
 .sahl-hero-product .sahl-float-note {
   position: absolute;
   z-index: 8;
-  inset: -24px 18px auto auto;
+  inset: -30px 6px auto auto;
   width: clamp(224px, 48%, 278px);
   min-width: 0;
   min-height: 70px;
@@ -15477,14 +15477,18 @@ section:has(> .integration-grid-wave) {
 @media (max-width: 720px) {
   .sahl-hero-product .sahl-float-note {
     position: absolute;
-    inset: -22px -20px auto auto;
-    width: calc(100% + 40px);
+    inset: -20px auto auto 50%;
+    width: min(260px, 92vw);
     min-height: 66px;
     margin: 0;
-    padding: 11px 13px;
-    grid-template-columns: 36px minmax(0, 1fr);
+    padding: 9px 11px;
+    grid-template-columns: 32px minmax(0, 1fr);
+    background: color-mix(in oklab, var(--glass-tint) 96%, var(--home-bg));
+    transform: translateX(-50%);
   }
-  .sahl-float-note-icon { width: 36px; height: 36px; }
+  .sahl-float-note-icon { width: 32px; height: 32px; }
+  .sahl-hero-product .sahl-float-note b { font-size: .76rem; }
+  .sahl-hero-product .sahl-float-note small { font-size: .59rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   .sahl-float-note-dot { animation: none; }
@@ -31174,15 +31178,18 @@ html { scroll-padding-top: 96px; }
 
 /* Keep the approval notification attached above the phone despite the legacy mobile rule. */
 @media (max-width: 720px) {
+  .sahl-hero-product { margin-top: 72px; }
   .sahl-hero-product .sahl-float-note {
     position: absolute;
-    inset: -22px -20px auto auto;
-    width: calc(100% + 40px);
+    inset: -20px auto auto 50%;
+    width: min(260px, 92vw);
     min-width: 0;
     min-height: 66px;
     margin: 0;
-    padding: 11px 13px;
-    grid-template-columns: 36px minmax(0, 1fr);
+    padding: 9px 11px;
+    grid-template-columns: 32px minmax(0, 1fr);
+    background: color-mix(in oklab, var(--glass-tint) 96%, var(--home-bg));
+    transform: translateX(-50%);
     animation: none;
   }
 }
