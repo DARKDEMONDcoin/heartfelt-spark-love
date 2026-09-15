@@ -441,6 +441,18 @@ export async function runEmployeeTurn(
     const ownerFirstName =
       (ownerProfile?.full_name ?? "").trim().split(/\s+/).filter(Boolean)[0] ?? null;
 
+    // «اليوم الأول»: هل تحدّث معه هذا الموظف من قبل إطلاقاً في هذه المساحة؟
+    let firstEverTurn = false;
+    if ((history ?? []).length === 0) {
+      const { count: priorCount } = await supabase
+        .from("messages")
+        .select("id", { count: "exact", head: true })
+        .eq("workspace_id", data.workspaceId)
+        .eq("employee_id", data.employeeId)
+        .eq("role", "assistant");
+      firstEverTurn = (priorCount ?? 0) === 0;
+    }
+
     // ذاكرة سِراج التشغيلية: صوت العلامة + قواعد مستخلصة من أداء الحساب + المجدول القادم.
     let sirajMemory = "";
     if (data.employeeId === "sonny") {
