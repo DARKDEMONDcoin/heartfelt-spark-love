@@ -24,10 +24,17 @@ const GEMINI = "https://generativelanguage.googleapis.com/v1beta/openai/chat/com
 const LOVABLE = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 /** نماذج بوابة Lovable المدمجة (لا تحتاج مفتاحاً من المستخدم) — الأقوى أولاً ثم الاحتياطي. */
-export const LOVABLE_MODELS = ["openai/gpt-5.6-sol", "google/gemini-2.5-flash"];
+export const LOVABLE_MODELS = ["openai/gpt-5.6-sol", "google/gemini-3.8-flash"];
 
 /** عائلة GPT-5 ترفض max_tokens وتحتاج مهلة أطول؛ حدّ الطول يُذكر في التعليمات بدلاً منه. */
 const isGpt5 = (model: string) => /(^|\/)gpt-5/.test(model);
+
+/**
+ * خدمة الأولوية على بوابة Lovable: زمن استجابة أقل لنماذج gpt-5.6 —
+ * تُطلب فقط على بوابة Lovable ومع هذه النماذج، وتُتجاهل تلقائياً إن لم تكن متاحة.
+ */
+const priorityFields = (endpoint: string, model: string) =>
+  endpoint === LOVABLE && isGpt5(model) ? { service_tier: "priority" as const } : {};
 
 /** نماذج Google AI Studio (المزوّد الأساسي) بالترتيب. */
 // flash-lite أولاً: يردّ في ~7 ثوانٍ بجودة قريبة، بينما 3.6-flash يتجاوز 50 ثانية
