@@ -178,7 +178,7 @@ export const askEmployee = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => askEmployeeInput.parse(data))
   .handler(async ({ data, context }) =>
-    runEmployeeTurn(data, context as unknown as TurnContext, () => {}),
+    runEmployeeTurn(data, context as unknown as TurnContext, noEmit),
   );
 
 /**
@@ -188,7 +188,7 @@ export const askEmployee = createServerFn({ method: "POST" })
 export async function runEmployeeTurn(
   data: AskEmployeeInput,
   context: TurnContext,
-  emit: TurnEmit,
+  emit: TurnEmit = noEmit,
 ) {
   {
     // المفاتيح تُقرأ داخل freeChat من جدول app_secrets في Supabase.
