@@ -15329,13 +15329,7 @@ section:has(> .integration-grid-wave) {
 
 /* sample — streaming output lines */
 .sahl-sample .sahl-dark-veil { background: radial-gradient(circle at 12% 10%, color-mix(in oklab,var(--home-terracotta) 20%,transparent), transparent 42%), radial-gradient(circle at 88% 82%, color-mix(in oklab,var(--home-teal) 17%,transparent), transparent 44%); }
-.sahl-sample-stream { position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: .5; }
-.sahl-sample-stream span { position: absolute; inset-inline-end: -30%; width: 60%; height: 1px; background: linear-gradient(90deg, transparent, color-mix(in oklab,var(--home-gold) 70%,transparent), transparent); animation: sahl-stream-run 9s linear infinite; }
-.sahl-sample-stream span:nth-child(1) { top: 18%; animation-duration: 11s; }
-.sahl-sample-stream span:nth-child(2) { top: 37%; animation-delay: -3s; animation-duration: 8.5s; background: linear-gradient(90deg, transparent, color-mix(in oklab,var(--home-terracotta) 74%,transparent), transparent); }
-.sahl-sample-stream span:nth-child(3) { top: 61%; animation-delay: -6s; animation-duration: 13s; }
-.sahl-sample-stream span:nth-child(4) { top: 82%; animation-delay: -1.5s; animation-duration: 10s; background: linear-gradient(90deg, transparent, color-mix(in oklab,var(--home-teal) 70%,transparent), transparent); }
-@keyframes sahl-stream-run { 0% { transform: translateX(-180%); opacity: 0; } 12% { opacity: 1; } 88% { opacity: 1; } 100% { transform: translateX(80%); opacity: 0; } }
+/* sahl-sample-stream removed — was animated gold light trails */
 .sahl-sample-board { position: relative; margin-top: 44px; padding: clamp(20px,3vw,34px); border: 1px solid color-mix(in oklab,var(--home-bg) 16%,transparent); border-radius: 18px; background: color-mix(in oklab,var(--home-bg) 7%,transparent); backdrop-filter: blur(8px); }
 .sahl-sample-ask { padding: 16px 18px; border: 1px dashed color-mix(in oklab,var(--home-gold) 46%,transparent); border-radius: 12px; background: color-mix(in oklab,var(--home-gold) 9%,transparent); }
 .sahl-sample-ask small { display: block; color: color-mix(in oklab,var(--home-gold) 88%,var(--home-bg)); font-size: .68rem; font-weight: 700; }
