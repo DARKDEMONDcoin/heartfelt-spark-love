@@ -503,6 +503,7 @@ export async function runEmployeeTurn(
         teamActivity,
       }),
       expertMindBlock(data.employeeId, intent),
+      intent === "work" ? employeeEdgeBlock(data.employeeId) : "",
       workspace.banned_words?.length
         ? `كلمات ممنوعة تماماً: ${workspace.banned_words.join("، ")}.`
         : "",
