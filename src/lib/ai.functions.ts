@@ -17,6 +17,7 @@ import {
   researchFor,
 } from "@/lib/nour-run.server";
 import { employeeDirectory, sharedSystemBlocks, type EmployeeId } from "@/lib/team-knowledge";
+import { employeeEdgeBlock } from "@/lib/employee-edge";
 import { playbookFor } from "@/lib/playbooks";
 
 type Deliverable = {
