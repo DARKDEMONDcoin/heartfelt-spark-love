@@ -15498,6 +15498,53 @@ section:has(> .integration-grid-wave) {
   .sahl-float-note-dot { animation: none; }
 }
 
+/* إشعار كوكيز صغير وغير معطّل للتصفح. */
+.sahl-cookie-consent {
+  position: fixed;
+  z-index: 150;
+  inset: auto auto max(20px, env(safe-area-inset-bottom)) 20px;
+  width: min(380px, calc(100vw - 40px));
+  min-height: 94px;
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  border: 1px solid color-mix(in oklab, var(--home-bg, var(--background)) 74%, transparent);
+  border-radius: 17px;
+  background: color-mix(in oklab, var(--glass-tint) 90%, var(--background));
+  box-shadow: 0 24px 54px -18px color-mix(in oklab, var(--foreground) 42%, transparent), inset 0 1px 0 color-mix(in oklab, var(--background) 86%, transparent);
+  animation: sahl-cookie-enter 360ms cubic-bezier(.2,.7,.2,1) both;
+}
+.sahl-cookie-consent.is-leaving { pointer-events: none; animation: sahl-cookie-exit 240ms ease-in both; }
+.sahl-cookie-consent p { position: relative; z-index: 1; margin: 0; color: var(--foreground); font-family: "Almarai", "IBM Plex Sans Arabic", sans-serif; font-size: .78rem; line-height: 1.7; }
+.sahl-cookie-consent p a { color: var(--home-terracotta, var(--primary)); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.sahl-cookie-actions { position: relative; z-index: 1; display: flex; align-items: center; gap: 6px; }
+.sahl-cookie-actions [data-slot="button"] { height: 32px; padding-inline: 14px; border-radius: 7px; font-family: "Almarai", "IBM Plex Sans Arabic", sans-serif; font-size: .7rem; }
+.sahl-cookie-actions [data-slot="button"]:first-child { background: var(--home-terracotta, var(--primary)); color: var(--primary-foreground); box-shadow: none; }
+.sahl-cookie-actions [data-slot="button"]:last-child { color: var(--muted-foreground); }
+@keyframes sahl-cookie-enter { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes sahl-cookie-exit { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(10px); } }
+@media (max-width: 720px) {
+  .sahl-cookie-consent {
+    inset: auto 12px max(12px, env(safe-area-inset-bottom)) 12px;
+    width: auto;
+    min-height: 0;
+    max-height: 25vh;
+    padding: 12px 13px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+  }
+  .sahl-cookie-consent p { font-size: .68rem; line-height: 1.65; }
+  .sahl-cookie-actions { gap: 3px; }
+  .sahl-cookie-actions [data-slot="button"] { height: 30px; padding-inline: 9px; font-size: .64rem; }
+}
+@media (max-width: 360px) {
+  .sahl-cookie-consent { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sahl-cookie-consent, .sahl-cookie-consent.is-leaving { animation: none; }
+}
+
 /* ===== هبوط الأجهزة + مشاهد متحركة جديدة + سلاسة التمرير ===== */
 html { scroll-padding-top: 96px; }
 .sahl-white-home { overflow-x: clip; }
