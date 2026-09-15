@@ -16,6 +16,7 @@ export const BROWSER_THEME = "#9B741E";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { RegionProvider } from "@/hooks/use-region";
 import { Button } from "@/components/ui/button";
+import { CookieConsent } from "@/components/site/CookieConsent";
 
 function NotFoundComponent() {
   return (
@@ -138,6 +139,7 @@ function RootComponent() {
       <RegionProvider>
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
+        <CookieConsent />
       </RegionProvider>
     </QueryClientProvider>
   );
