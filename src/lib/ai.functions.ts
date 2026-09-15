@@ -972,34 +972,6 @@ export async function runEmployeeTurn(
       reply = `${reply.trim()}\n\n### 📸 صور من موقعك تصلح لهذا المحتوى\n\n${gallery}\n\nاختر أي صورة منها بدل الصورة المولّدة — كلها صور حقيقية من موقعك.`;
     }
 
-    // منع التكرار: أحياناً يعيد النموذج نفس الفقرة مرتين (ملخص + مخرج) — نُبقي أول ظهور فقط.
-    reply = dedupeParagraphs(reply);
-
-    // حَكَم الجودة: مراجعة إلزامية للمخرجات الطويلة قبل أن تراها — وإصلاح واحد موجّه عند الرسوب.
-    let qualityScore: number | null = null;
-    if (intent === "work" && reply.length > 900) {
-      emit({ type: "step", label: "أراجع جودة المخرج قبل تسليمه لك" });
-      try {
-        const { judgeAndImprove } = await import("./quality-judge.server");
-        const verdict = await judgeAndImprove({
-          employeeId: data.employeeId,
-          request: data.message,
-          output: reply,
-          criteria: qualityCriteria[data.employeeId] ?? [],
-          bannedWords: workspace.banned_words ?? [],
-        });
-        qualityScore = verdict.score || null;
-        if (verdict.revised) {
-          // مخرج واحد فقط: نجعل المهمة المحفوظة مطابقة تماماً لما يظهر في المحادثة.
-          if (deliverables.length === 1 && deliverables[0]?.body) {
-            deliverables[0]!.body = verdict.output;
-          }
-          reply = verdict.output;
-        }
-      } catch (error) {
-        console.warn("[judge] skipped:", error instanceof Error ? error.message : error);
-      }
-    }
 
 
     emit({ type: "step", label: "أحفظ الرد والمخرجات في مساحتك" });
