@@ -290,7 +290,14 @@ export async function runEmployeeTurn(
 
     if (insertUserError) throw new Error(insertUserError.message);
 
-    emit({ type: "step", label: "قرأت طلبك وسجل المحادثة وذاكرة علامتك" });
+    const { coworkerVoiceBlock, shortTopic } = await import("./coworker-voice");
+    const turnTopic = shortTopic(data.message);
+    emit({
+      type: "step",
+      label: (history ?? []).length
+        ? `رجعت لآخر ما اتفقنا عليه وقرأت طلبك عن «${turnTopic}»`
+        : `قرأت طلبك عن «${turnTopic}» وذاكرة علامتك`,
+    });
 
     const { durableMemoryItems, extractExplicitMemories, memoryBlock } =
       await import("./memory.server");
@@ -355,7 +362,7 @@ export async function runEmployeeTurn(
       (workspace as { timezone?: string | null }).timezone ??
       (ws.country === "SA" ? "Asia/Riyadh" : "Africa/Cairo");
 
-    emit({ type: "step", label: "أجمع أدلة وأرقاماً حقيقية تخص طلبك" });
+    emit({ type: "step", label: `أجمع أدلة وأرقاماً حقيقية عن «${turnTopic}»` });
     const [research, liveBlock] = await Promise.all([
       researchFor(
         data.employeeId,
@@ -389,7 +396,7 @@ export async function runEmployeeTurn(
       : "";
 
     // تنفيذ فعلي لقدرات الأقسام من داخل الشات (فحص سيو، ترتيب، تقويم، أفكار، أداء).
-    emit({ type: "step", label: "أنفّذ أدوات المنصة اللازمة (فحص وتحليل وبيانات)" });
+    emit({ type: "step", label: "أفتح أدوات المنصة وأشغّل الفحص والتحليل بنفسي" });
     let toolBlocks: { block: string; footer: string; tool: string }[] = [];
     try {
       const { runChatTools } = await import("./chat-tools.server");
@@ -408,6 +415,12 @@ export async function runEmployeeTurn(
     } catch (e) {
       console.warn("[chat-tools] skipped:", e instanceof Error ? e.message : e);
     }
+    if (toolBlocks.length) {
+      emit({
+        type: "step",
+        label: `خلصت: ${toolBlocks.map((t) => t.tool).slice(0, 3).join("، ")}`,
+      });
+    }
     const toolsBlock = toolBlocks.length
       ? `## نتائج نفّذتها فعلاً الآن من أقسام المنصة (حقيقية — استخدمها حرفياً)\n${toolBlocks.map((t) => t.block).join("\n\n")}`
       : "";
@@ -418,6 +431,15 @@ export async function runEmployeeTurn(
         return `- ${who}: ${t.title} (${t.status === "done" ? "منشور/منجز" : t.status === "review" ? "بانتظار الاعتماد" : t.status})`;
       })
       .join("\n");
+
+    // صاحب العمل: اسمه الأول ومسمّاه — حتى يخاطبه الموظف كزميل يعرفه لا كمستخدم مجهول.
+    const { data: ownerProfile } = await supabase
+      .from("profiles")
+      .select("full_name, job_title")
+      .eq("id", workspace.owner_id)
+      .maybeSingle();
+    const ownerFirstName =
+      (ownerProfile?.full_name ?? "").trim().split(/\s+/).filter(Boolean)[0] ?? null;
 
     // ذاكرة سِراج التشغيلية: صوت العلامة + قواعد مستخلصة من أداء الحساب + المجدول القادم.
     let sirajMemory = "";
@@ -457,6 +479,15 @@ export async function runEmployeeTurn(
       nowBlock(timezone),
       liveBlock,
       intentBlock(intent),
+      coworkerVoiceBlock({
+        employeeName: persona.name,
+        role: persona.role,
+        userName: ownerFirstName,
+        userTitle: ownerProfile?.job_title ?? null,
+        intent,
+        firstMessage: (history ?? []).length === 0,
+        teamActivity,
+      }),
       expertMindBlock(data.employeeId, intent),
       workspace.banned_words?.length
         ? `كلمات ممنوعة تماماً: ${workspace.banned_words.join("، ")}.`
