@@ -289,6 +289,8 @@ export async function runEmployeeTurn(
 
     if (insertUserError) throw new Error(insertUserError.message);
 
+    emit({ type: "step", label: "قرأت طلبك وسجل المحادثة وذاكرة علامتك" });
+
     const { durableMemoryItems, extractExplicitMemories, memoryBlock } =
       await import("./memory.server");
     const brainText = memoryBlock(
@@ -350,6 +352,7 @@ export async function runEmployeeTurn(
       (workspace as { timezone?: string | null }).timezone ??
       (ws.country === "SA" ? "Asia/Riyadh" : "Africa/Cairo");
 
+    emit({ type: "step", label: "أجمع أدلة وأرقاماً حقيقية تخص طلبك" });
     const [research, liveBlock] = await Promise.all([
       researchFor(
         data.employeeId,
@@ -383,6 +386,7 @@ export async function runEmployeeTurn(
       : "";
 
     // تنفيذ فعلي لقدرات الأقسام من داخل الشات (فحص سيو، ترتيب، تقويم، أفكار، أداء).
+    emit({ type: "step", label: "أنفّذ أدوات المنصة اللازمة (فحص وتحليل وبيانات)" });
     let toolBlocks: { block: string; footer: string; tool: string }[] = [];
     try {
       const { runChatTools } = await import("./chat-tools.server");
@@ -752,6 +756,7 @@ export async function runEmployeeTurn(
     // الصور تُولَّد فعلياً — لا يبقى المستخدم مع «برومبت» مكتوب فقط.
     // والمستخدم هو صاحب القرار: إيقاف · تلقائي · وصف يكتبه بنفسه (يُترجم حرفياً بلا إضافة).
     let imageUrl: string | null = null;
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
     const imageMode = data.imageMode ?? "auto";
     const userImagePrompt = data.imagePrompt?.trim() ?? "";
     const wantsImage =
@@ -920,6 +925,7 @@ export async function runEmployeeTurn(
     // حَكَم الجودة: مراجعة إلزامية للمخرجات الطويلة قبل أن تراها — وإصلاح واحد موجّه عند الرسوب.
     let qualityScore: number | null = null;
     if (intent === "work" && reply.length > 900) {
+      emit({ type: "step", label: "أراجع جودة المخرج قبل تسليمه لك" });
       try {
         const { judgeAndImprove } = await import("./quality-judge.server");
         const verdict = await judgeAndImprove({
@@ -942,6 +948,8 @@ export async function runEmployeeTurn(
       }
     }
 
+
+    emit({ type: "step", label: "أحفظ الرد والمخرجات في مساحتك" });
 
     const { data: assistantRow, error: assistantError } = await supabase
       .from("messages")
