@@ -31066,3 +31066,34 @@ html { scroll-padding-top: 96px; }
   .sahl-plan-grid article > h3,
   .sahl-plan-grid article > p { overflow-wrap: anywhere; }
 }
+
+/* حضور الموظف في شريط المحادثة: يوحي أن في زميلاً متاحاً الآن لا أداة صامتة. */
+.chat-presence {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--secondary) / 0.6);
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+}
+.chat-presence i {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: #16a34a;
+  box-shadow: 0 0 0 0 rgb(22 163 74 / 0.55);
+  animation: chat-presence-pulse 2.2s ease-out infinite;
+}
+@keyframes chat-presence-pulse {
+  70% { box-shadow: 0 0 0 0.35rem rgb(22 163 74 / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(22 163 74 / 0); }
+}
+@media (max-width: 420px) {
+  .chat-presence span { display: none; }
+}
