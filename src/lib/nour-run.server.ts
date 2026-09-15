@@ -12,8 +12,7 @@ import { withBudget } from "./seo-research.server";
 import { memoryBlock } from "./memory.server";
 import { actionTruthRules, sanitizeActionClaims } from "./action-claims";
 import { sharedSystemBlocks } from "./team-knowledge";
-import { socialPlaybookBlock } from "./social-playbook";
-import { seoPlaybookBlock } from "./seo-playbook";
+import { playbookFor } from "./playbooks";
 
 export type Client = SupabaseClient<Database>;
 
@@ -777,7 +776,7 @@ export async function executeSkill(
       ? `كلمات ممنوعة تماماً: ${workspace.banned_words.join("، ")}.`
       : "",
     craft[params.employeeId] ? `## معايير حِرفتك\n${craft[params.employeeId]}` : "",
-    playbookFor(params.employeeId, `${params.skill} ${params.input ?? ""}`),
+    playbookFor(params.employeeId, `${params.skillId} ${Object.values(params.values ?? {}).join(" ")}`),
     qualityCriteria[params.employeeId]?.length
       ? `## معايير قبول المخرج (راجعها بنداً بنداً قبل التسليم)\n${(qualityCriteria[params.employeeId] ?? []).map((criterion, index) => `${index + 1}) ${criterion}`).join("\n")}`
       : "",
