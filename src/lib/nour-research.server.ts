@@ -148,6 +148,7 @@ async function callOpenAICompatible(
       model,
       // بدون هذا يستهلك gemini-3.6-flash دقائق في "التفكير" ويقطع الرد.
       reasoning_effort: "low",
+      ...priorityFields(endpoint, model),
       ...(options.json ? { response_format: { type: "json_object" } } : {}),
       ...(isGpt5(model) ? {} : { max_tokens: options.maxTokens ?? 1800 }),
       messages,
@@ -309,6 +310,7 @@ async function callStream(
       model,
       stream: true,
       reasoning_effort: "low",
+      ...priorityFields(endpoint, model),
       ...(options.json ? { response_format: { type: "json_object" } } : {}),
       ...(isGpt5(model) ? {} : { max_tokens: options.maxTokens ?? 1800 }),
       messages,
