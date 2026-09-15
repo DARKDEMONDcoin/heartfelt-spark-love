@@ -824,10 +824,12 @@ export async function runEmployeeTurn(
             aspectSize(data.imageAspect ?? "landscape"),
           );
         }
-      } catch (error) {
-        console.error("[chat] image generation failed:", error);
-      }
-    }
+          } catch (error) {
+            console.error("[chat] image generation failed:", error);
+          }
+          return imageUrl;
+        })();
+
 
     // مخرج واحد جاهز للنشر: نص المنشور نفسه هو أهم ما يراه المستخدم — نضعه في صدر الرد
     // ونضع تعليق الموظف بعده خلف فاصل، حتى تلتقطه لوحة النشر نظيفاً بلا كلام موظف.
