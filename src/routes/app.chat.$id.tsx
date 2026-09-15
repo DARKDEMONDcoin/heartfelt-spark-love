@@ -65,6 +65,7 @@ import { ActionPanel } from "@/components/app/ActionPanel";
 import { UserAvatar } from "@/components/app/UserAvatar";
 import { BrandVoiceExtractor } from "@/components/app/BrandVoiceExtractor";
 import { Portrait } from "@/components/site/Portrait";
+import { streamEmployeeTurn } from "@/lib/employee-stream";
 import {
   MediaStudio,
   type Attachment,
@@ -624,6 +625,9 @@ function ChatView({
     if (prefill) setDraft(prefill);
   }, [prefill]);
   const [pending, setPending] = useState<string | null>(null);
+  /** البثّ الحقيقي: المرحلة التي ينفّذها الموظف الآن + نص ردّه وهو يُكتب. */
+  const [liveStep, setLiveStep] = useState<string | null>(null);
+  const [liveText, setLiveText] = useState("");
   const [savedTask, setSavedTask] = useState(false);
   /** طلب ربط سياقي: يظهر فقط عندما تحتاج المهمة الحالية حساباً غير مربوط. */
   const [needsConnection, setNeedsConnection] = useState<{
