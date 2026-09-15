@@ -15429,7 +15429,7 @@ section:has(> .integration-grid-wave) {
   z-index: 20;
   inset: auto;
   top: 54px;
-  left: calc(50% - 232px);
+  left: 24px;
   width: 232px;
   height: 64px;
   min-width: 0;
