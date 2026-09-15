@@ -5,6 +5,8 @@ import { ActivationMap } from "@/components/app/ActivationMap";
 import { AdsResultsCard } from "@/components/app/AdsResultsCard";
 import { AppShell } from "@/components/app/AppShell";
 import { BusinessProfileCard } from "@/components/app/BusinessProfileCard";
+import { CatchUpNote } from "@/components/app/CatchUpNote";
+import { MorningBriefingCard } from "@/components/app/MorningBriefingCard";
 import { appLabel } from "@/components/site/AppIcon";
 import { getMember, team } from "@/data/team";
 import { taskStatusLabel } from "@/data/app";
@@ -134,6 +136,8 @@ function AppHome() {
         <FirstRun workspace={workspace ?? null} />
       ) : (
         <div className="app-command-center space-y-4">
+          <CatchUpNote tasks={list as never} />
+          {workspace ? <MorningBriefingCard workspaceId={workspace.id} /> : null}
           <section className="app-command-head">
             <div>
               <p>SAHL / EXECUTIVE CONTROL</p>
