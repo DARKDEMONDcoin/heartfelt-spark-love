@@ -744,19 +744,24 @@ function ChatView({
 
       // البثّ الحقيقي: مراحل التنفيذ الفعلية ثم نص الرد وهو يُكتب.
       // الأسئلة والدردشة لا تبثّ شيئاً — تصل كاملة مرة واحدة.
+      // لا نعيد الطلب إن كان التنفيذ قد بدأ فعلاً — كي لا تتكرر الرسالة مرتين.
+      let started = false;
       try {
         const result = await streamEmployeeTurn(payload, {
           onStep: (label) => {
+            started = true;
             if (!cancelledRef.current) setLiveStep(label);
           },
           onDelta: (text) => {
+            started = true;
             if (!cancelledRef.current) setLiveText((prev) => prev + text);
           },
           onReset: () => setLiveText(""),
         });
         return { result, activeConversationId };
       } catch (streamError) {
-        // انقطاع البثّ لا يُفقد المستخدم رده: نعيد الطلب بالمسار العادي.
+        if (started) throw streamError;
+        // تعذّر بدء البثّ (شبكة/جلسة): نُنفّذ الطلب بالمسار العادي كي لا يُفقد.
         console.warn("[chat] stream failed, falling back:", streamError);
         setLiveStep(null);
         setLiveText("");
