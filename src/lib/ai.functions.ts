@@ -1,5 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+import type { Database } from "@/integrations/supabase/types";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { freeChat } from "@/lib/nour-research.server";
@@ -131,7 +134,7 @@ function harvestDeliverables(node: unknown, out: Deliverable[] = [], depth = 0):
   return out;
 }
 
-const input = z.object({
+export const askEmployeeInput = z.object({
   workspaceId: z.string().uuid(),
   employeeId: z.string().min(1),
   message: z.string().min(1).max(4000),
@@ -158,10 +161,36 @@ const input = z.object({
 /** الموظفون الذين تُولَّد لهم صورة فعلية عند وجود وصف بصري في الرد. */
 const VISUAL_EMPLOYEES = new Set(["dana", "sonny", "nour"]);
 
+/** حدث تقدّم حقيقي يُبثّ للمستخدم أثناء تنفيذ الطلب. */
+export type TurnEvent =
+  | { type: "step"; label: string }
+  | { type: "delta"; text: string }
+  | { type: "reset" };
+
+export type TurnEmit = (event: TurnEvent) => void;
+
+/** مستقبل أحداث صامت: المسار العادي بلا بثّ. */
+const noEmit: TurnEmit = () => {};
+export type AskEmployeeInput = z.infer<typeof askEmployeeInput>;
+export type TurnContext = { supabase: SupabaseClient<Database> };
+
 export const askEmployee = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => input.parse(data))
-  .handler(async ({ data, context }) => {
+  .inputValidator((data: unknown) => askEmployeeInput.parse(data))
+  .handler(async ({ data, context }) =>
+    runEmployeeTurn(data, context as unknown as TurnContext, noEmit),
+  );
+
+/**
+ * دورة عمل الموظف الكاملة. تُستخدم من الشات العادي (بلا بثّ)
+ * ومن مسار البثّ الحقيقي (emit يسلّم مراحل التنفيذ والنص وهو يُكتب).
+ */
+export async function runEmployeeTurn(
+  data: AskEmployeeInput,
+  context: TurnContext,
+  emit: TurnEmit = noEmit,
+) {
+  {
     // المفاتيح تُقرأ داخل freeChat من جدول app_secrets في Supabase.
     const apiKey = "";
 
@@ -263,6 +292,8 @@ export const askEmployee = createServerFn({ method: "POST" })
 
     if (insertUserError) throw new Error(insertUserError.message);
 
+    emit({ type: "step", label: "قرأت طلبك وسجل المحادثة وذاكرة علامتك" });
+
     const { durableMemoryItems, extractExplicitMemories, memoryBlock } =
       await import("./memory.server");
     const brainText = memoryBlock(
@@ -315,6 +346,8 @@ export const askEmployee = createServerFn({ method: "POST" })
     const intent = chatIntent(data.message);
     /** طلب صورة صريح من المستخدم: تُولَّد صورة فعلية أياً كان الموظف. */
     const explicitImage = intent === "work" && wantsImageRequest(data.message);
+    /** البثّ الحقيقي للطلبات الصريحة فقط — الأسئلة والدردشة تُجاب فوراً بلا بثّ. */
+    const streaming = emit !== noEmit && intent === "work";
     // عقل الخبير: عمق التخصص + سؤال واحد بخيارات عند الغموض الجوهري فقط.
     const { expertMindBlock } = await import("./expert-mind");
 
@@ -324,6 +357,7 @@ export const askEmployee = createServerFn({ method: "POST" })
       (workspace as { timezone?: string | null }).timezone ??
       (ws.country === "SA" ? "Asia/Riyadh" : "Africa/Cairo");
 
+    emit({ type: "step", label: "أجمع أدلة وأرقاماً حقيقية تخص طلبك" });
     const [research, liveBlock] = await Promise.all([
       researchFor(
         data.employeeId,
@@ -357,6 +391,7 @@ export const askEmployee = createServerFn({ method: "POST" })
       : "";
 
     // تنفيذ فعلي لقدرات الأقسام من داخل الشات (فحص سيو، ترتيب، تقويم، أفكار، أداء).
+    emit({ type: "step", label: "أنفّذ أدوات المنصة اللازمة (فحص وتحليل وبيانات)" });
     let toolBlocks: { block: string; footer: string; tool: string }[] = [];
     try {
       const { runChatTools } = await import("./chat-tools.server");
@@ -574,21 +609,36 @@ export const askEmployee = createServerFn({ method: "POST" })
       }
     }
 
-    let raw = campaign
-      ? JSON.stringify({ reply: campaign.reply, deliverables: campaign.deliverables })
-      : await freeChat(
-          apiKey,
-          [
-            { role: "system", content: system },
-            ...priorMessages,
-            { role: "user", content: userTurn },
-          ],
+    emit({ type: "step", label: "أكتب المخرج الآن كلمة بكلمة" });
 
-          // طلبات المقالات/الخطط الكاملة تحتاج مخرجاً طويلاً ومهلة أطول — مع سقف زمني إجمالي حتى لا يعلّق الشات.
-          longForm
-            ? { json: true, timeoutMs: 75_000, maxTokens: 6000, budgetMs: 130_000 }
-            : { json: true, timeoutMs: 40_000, maxTokens: 1800, budgetMs: 100_000 },
-        );
+    const chatMessages = [
+      { role: "system", content: system },
+      ...priorMessages,
+      { role: "user", content: userTurn },
+    ];
+    // طلبات المقالات/الخطط الكاملة تحتاج مخرجاً طويلاً ومهلة أطول — مع سقف زمني إجمالي حتى لا يعلّق الشات.
+    const chatOptions = longForm
+      ? { json: true, timeoutMs: 75_000, maxTokens: 6000, budgetMs: 130_000 }
+      : { json: true, timeoutMs: 40_000, maxTokens: 1800, budgetMs: 100_000 };
+
+    let raw: string;
+    if (campaign) {
+      raw = JSON.stringify({ reply: campaign.reply, deliverables: campaign.deliverables });
+    } else if (streaming) {
+      // بثّ حقيقي: نص الرد يُسلَّم للمستخدم وهو يُكتب فعلياً من النموذج.
+      const { freeChatStream } = await import("./nour-research.server");
+      const { createReplyStreamer } = await import("./stream-reply");
+      const streamer = createReplyStreamer((text) => emit({ type: "delta", text }));
+      raw = await freeChatStream(apiKey, chatMessages, chatOptions, {
+        onDelta: (chunk) => streamer.push(chunk),
+        onRestart: () => {
+          streamer.reset();
+          emit({ type: "reset" });
+        },
+      });
+    } else {
+      raw = await freeChat(apiKey, chatMessages, chatOptions);
+    }
 
     let reply = raw;
     let deliverables: Deliverable[] = [];
@@ -726,6 +776,7 @@ export const askEmployee = createServerFn({ method: "POST" })
     // الصور تُولَّد فعلياً — لا يبقى المستخدم مع «برومبت» مكتوب فقط.
     // والمستخدم هو صاحب القرار: إيقاف · تلقائي · وصف يكتبه بنفسه (يُترجم حرفياً بلا إضافة).
     let imageUrl: string | null = null;
+    
     const imageMode = data.imageMode ?? "auto";
     const userImagePrompt = data.imagePrompt?.trim() ?? "";
     const wantsImage =
@@ -753,6 +804,7 @@ export const askEmployee = createServerFn({ method: "POST" })
           Boolean(draft) ||
           deliverables.some((d) => d.body && d.body.length > 80);
         if (wantsVisual) {
+          emit({ type: "step", label: "أولّد الصورة المطلوبة الآن" });
           // وصف المستخدم يُحترم حرفياً؛ وإلا يُشتق الوصف من طلبه ومن المخرج نفسه.
           const prompt =
             imageMode === "manual"
@@ -894,6 +946,7 @@ export const askEmployee = createServerFn({ method: "POST" })
     // حَكَم الجودة: مراجعة إلزامية للمخرجات الطويلة قبل أن تراها — وإصلاح واحد موجّه عند الرسوب.
     let qualityScore: number | null = null;
     if (intent === "work" && reply.length > 900) {
+      emit({ type: "step", label: "أراجع جودة المخرج قبل تسليمه لك" });
       try {
         const { judgeAndImprove } = await import("./quality-judge.server");
         const verdict = await judgeAndImprove({
@@ -916,6 +969,8 @@ export const askEmployee = createServerFn({ method: "POST" })
       }
     }
 
+
+    emit({ type: "step", label: "أحفظ الرد والمخرجات في مساحتك" });
 
     const { data: assistantRow, error: assistantError } = await supabase
       .from("messages")
@@ -993,7 +1048,9 @@ export const askEmployee = createServerFn({ method: "POST" })
       imageUrl,
       siteSuggestions,
     };
-  });
+  }
+}
+
 
 const skillInput = z.object({
   workspaceId: z.string().uuid(),

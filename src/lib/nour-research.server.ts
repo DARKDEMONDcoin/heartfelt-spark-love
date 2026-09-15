@@ -286,6 +286,122 @@ async function freeChatInner(
   throw new Error(`تعذّر توليد الرد من النماذج المجانية (${lastError}).`);
 }
 
+/** نداء متدفّق (SSE) لواجهة متوافقة مع OpenAI — يسلّم كل دفعة نصية لحظة وصولها. */
+async function callStream(
+  endpoint: string,
+  apiKey: string,
+  model: string,
+  messages: { role: string; content: string }[],
+  options: ChatOptions,
+  onDelta: (chunk: string) => void,
+): Promise<string> {
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      stream: true,
+      reasoning_effort: "low",
+      ...(options.json ? { response_format: { type: "json_object" } } : {}),
+      ...(isGpt5(model) ? {} : { max_tokens: options.maxTokens ?? 1800 }),
+      messages,
+    }),
+    signal: AbortSignal.timeout(
+      isGpt5(model) ? Math.max(options.timeoutMs ?? 0, 90_000) : (options.timeoutMs ?? 30_000),
+    ),
+  });
+  if (!res.ok || !res.body) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`${model}: ${res.status} ${text.slice(0, 200)}`);
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let full = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("data:")) continue;
+      const payload = trimmed.slice(5).trim();
+      if (!payload || payload === "[DONE]") continue;
+      try {
+        const parsed = JSON.parse(payload) as {
+          choices?: { delta?: { content?: string } }[];
+        };
+        const piece = parsed.choices?.[0]?.delta?.content;
+        if (piece) {
+          full += piece;
+          onDelta(piece);
+        }
+      } catch {
+        /* دفعة غير مكتملة — تُهمل */
+      }
+    }
+  }
+  if (!full.trim()) throw new Error(`${model}: رد فارغ`);
+  return full;
+}
+
+/**
+ * نفس منطق freeChat لكن بتدفّق حقيقي: يسلّم النص وهو يُكتب.
+ * عند فشل كل المزوّدات المتدفّقة يرجع تلقائياً إلى النداء العادي (بلا تدفّق).
+ */
+export async function freeChatStream(
+  keyHint: string,
+  messages: { role: string; content: string }[],
+  options: ChatOptions = {},
+  handlers: { onDelta: (chunk: string) => void; onRestart?: () => void } = {
+    onDelta: () => {},
+  },
+): Promise<string> {
+  const { limitLlm } = await import("./limiter.server");
+  const { providerKeys } = await import("./provider-keys.server");
+  const keys = await providerKeys();
+  const tries: { endpoint: string; key: string; model: string }[] = [
+    ...(keys.lovable
+      ? LOVABLE_MODELS.map((model) => ({ endpoint: LOVABLE, key: keys.lovable!, model }))
+      : []),
+    ...(keys.gemini
+      ? GEMINI_MODELS.map((model) => ({ endpoint: GEMINI, key: keys.gemini!, model }))
+      : []),
+  ];
+  let emitted = false;
+  for (const attempt of tries) {
+    try {
+      return await limitLlm(() =>
+        callStream(
+          attempt.endpoint,
+          attempt.key,
+          attempt.model,
+          messages,
+          options,
+          (chunk) => {
+            emitted = true;
+            handlers.onDelta(chunk);
+          },
+        ),
+      );
+    } catch (error) {
+      console.warn(
+        "[stream] provider failed:",
+        attempt.model,
+        error instanceof Error ? error.message : error,
+      );
+      if (emitted) {
+        emitted = false;
+        handlers.onRestart?.();
+      }
+    }
+  }
+  if (emitted) handlers.onRestart?.();
+  return freeChat(keyHint, messages, options);
+}
+
 export function parseJson<T>(raw: string): T | null {
   const cleaned = raw
     .replace(/^```(?:json)?\s*/i, "")
