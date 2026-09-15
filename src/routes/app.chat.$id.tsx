@@ -775,6 +775,8 @@ function ChatView({
       await qc.invalidateQueries({
         queryKey: ["messages", workspace?.id, id, activeConversationId],
       });
+      setLiveStep(null);
+      setLiveText("");
       if (cancelledRef.current) {
         cancelledRef.current = false;
         return;
@@ -794,6 +796,8 @@ function ChatView({
     },
     onError: (e: unknown, message) => {
       setPending(null);
+      setLiveStep(null);
+      setLiveText("");
       if (cancelledRef.current) {
         cancelledRef.current = false;
         return;
