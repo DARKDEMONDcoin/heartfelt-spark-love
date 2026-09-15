@@ -777,8 +777,10 @@ export async function executeSkill(
       ? `كلمات ممنوعة تماماً: ${workspace.banned_words.join("، ")}.`
       : "",
     craft[params.employeeId] ? `## معايير حِرفتك\n${craft[params.employeeId]}` : "",
-    params.employeeId === "sonny" ? socialPlaybookBlock : "",
-    params.employeeId === "nour" ? seoPlaybookBlock : "",
+    playbookFor(params.employeeId, `${params.skill} ${params.input ?? ""}`),
+    qualityCriteria[params.employeeId]?.length
+      ? `## معايير قبول المخرج (راجعها بنداً بنداً قبل التسليم)\n${(qualityCriteria[params.employeeId] ?? []).map((criterion, index) => `${index + 1}) ${criterion}`).join("\n")}`
+      : "",
     sirajMemory,
     nourMemory,
     decisionsMemory,
