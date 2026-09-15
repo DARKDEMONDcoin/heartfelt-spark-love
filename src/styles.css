@@ -184,6 +184,11 @@
   html {
     scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
+    /* واجهة فاتحة ثابتة: المتصفح لا يقلب الألوان ولا شريط العنوان. */
+    color-scheme: light;
+    background-color: var(--color-background);
+    /* لا تمدّد أفقي مهما طال المحتوى — clip لا يكسر position: sticky. */
+    overflow-x: clip;
   }
 
   body {
