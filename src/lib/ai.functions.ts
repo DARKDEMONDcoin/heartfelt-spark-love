@@ -604,21 +604,36 @@ export async function runEmployeeTurn(
       }
     }
 
-    let raw = campaign
-      ? JSON.stringify({ reply: campaign.reply, deliverables: campaign.deliverables })
-      : await freeChat(
-          apiKey,
-          [
-            { role: "system", content: system },
-            ...priorMessages,
-            { role: "user", content: userTurn },
-          ],
+    emit({ type: "step", label: "أكتب المخرج الآن كلمة بكلمة" });
 
-          // طلبات المقالات/الخطط الكاملة تحتاج مخرجاً طويلاً ومهلة أطول — مع سقف زمني إجمالي حتى لا يعلّق الشات.
-          longForm
-            ? { json: true, timeoutMs: 75_000, maxTokens: 6000, budgetMs: 130_000 }
-            : { json: true, timeoutMs: 40_000, maxTokens: 1800, budgetMs: 100_000 },
-        );
+    const chatMessages = [
+      { role: "system", content: system },
+      ...priorMessages,
+      { role: "user", content: userTurn },
+    ];
+    // طلبات المقالات/الخطط الكاملة تحتاج مخرجاً طويلاً ومهلة أطول — مع سقف زمني إجمالي حتى لا يعلّق الشات.
+    const chatOptions = longForm
+      ? { json: true, timeoutMs: 75_000, maxTokens: 6000, budgetMs: 130_000 }
+      : { json: true, timeoutMs: 40_000, maxTokens: 1800, budgetMs: 100_000 };
+
+    let raw: string;
+    if (campaign) {
+      raw = JSON.stringify({ reply: campaign.reply, deliverables: campaign.deliverables });
+    } else if (streaming) {
+      // بثّ حقيقي: نص الرد يُسلَّم للمستخدم وهو يُكتب فعلياً من النموذج.
+      const { freeChatStream } = await import("./nour-research.server");
+      const { createReplyStreamer } = await import("./stream-reply");
+      const streamer = createReplyStreamer((text) => emit({ type: "delta", text }));
+      raw = await freeChatStream(apiKey, chatMessages, chatOptions, {
+        onDelta: (chunk) => streamer.push(chunk),
+        onRestart: () => {
+          streamer.reset();
+          emit({ type: "reset" });
+        },
+      });
+    } else {
+      raw = await freeChat(apiKey, chatMessages, chatOptions);
+    }
 
     let reply = raw;
     let deliverables: Deliverable[] = [];
