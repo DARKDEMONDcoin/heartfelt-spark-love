@@ -31097,3 +31097,28 @@ html { scroll-padding-top: 96px; }
 @media (max-width: 420px) {
   .chat-presence span { display: none; }
 }
+
+/* ملاحظة «أثناء غيابك»: زميل يلخّص ما حدث، لا لوحة أرقام. */
+.app-catchup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 1rem;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--secondary) / 0.55);
+  font-size: 0.84rem;
+  line-height: 1.7;
+}
+.app-catchup p { min-width: 0; flex: 1 1 16rem; margin: 0; }
+.app-catchup-icon {
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  flex-shrink: 0;
+  border-radius: 0.7rem;
+  background: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary));
+}
