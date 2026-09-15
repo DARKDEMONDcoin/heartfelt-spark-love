@@ -865,6 +865,8 @@ function ChatView({
 
     cancelledRef.current = false;
     setDraft("");
+    setLiveStep(null);
+    setLiveText("");
     setPending(body);
     send.mutate(body);
   };
@@ -876,6 +878,8 @@ function ChatView({
     if (pending) setDraft(pending);
     setPending(null);
     setPendingText(null);
+    setLiveStep(null);
+    setLiveText("");
     setError(null);
     send.reset();
     skillRun.reset();
