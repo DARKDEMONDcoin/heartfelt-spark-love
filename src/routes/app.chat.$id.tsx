@@ -894,6 +894,13 @@ function ChatView({
       compactTitle
       actions={
         <div className="chat-topbar-actions no-scrollbar flex min-w-0 flex-1 items-center justify-end gap-1 overflow-x-auto sm:gap-1.5">
+          <span
+            className="chat-presence"
+            title={busy ? `${member.name} بيشتغل على طلبك الآن` : `${member.name} متاح الآن`}
+          >
+            <i aria-hidden="true" />
+            <span>{busy ? "بيشتغل الآن" : "متاح الآن"}</span>
+          </span>
           <SkillPalette
             skills={employeeSkills}
             quick={quickSkills}
