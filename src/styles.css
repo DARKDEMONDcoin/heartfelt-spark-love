@@ -15342,10 +15342,7 @@ section:has(> .integration-grid-wave) {
 .sahl-sample-ask p { margin-top: 6px; color: var(--home-bg); font-size: 1.02rem; font-weight: 600; }
 .sahl-sample-grid { display: grid; grid-template-columns: 1.25fr 1fr 1fr; gap: 14px; margin-top: 18px; }
 .sahl-sample-grid article { position: relative; min-width: 0; display: flex; flex-direction: column; border: 1px solid color-mix(in oklab,var(--home-bg) 14%,transparent); border-radius: 12px; background: color-mix(in oklab,var(--home-bg) 5%,transparent); overflow: hidden; }
-.sahl-sample-grid article::after { content: ""; position: absolute; inset-inline: 0; top: 0; height: 2px; background: linear-gradient(90deg, transparent, color-mix(in oklab,var(--home-gold) 80%,transparent), transparent); opacity: .85; animation: sahl-card-scan 6.5s ease-in-out infinite; }
-.sahl-sample-grid article:nth-child(2)::after { animation-delay: -2.2s; }
-.sahl-sample-grid article:nth-child(3)::after { animation-delay: -4.4s; }
-@keyframes sahl-card-scan { 0%, 100% { transform: translateY(0); opacity: 0; } 8% { opacity: .9; } 50% { transform: translateY(240px); opacity: .25; } 92% { opacity: 0; } }
+.sahl-sample-grid article::after { content: none; }
 .sahl-sample-grid header { display: flex; align-items: center; gap: 8px; padding: 12px 15px; border-bottom: 1px solid color-mix(in oklab,var(--home-bg) 12%,transparent); background: color-mix(in oklab,var(--home-bg) 6%,transparent); }
 .sahl-sample-grid header svg { width: 17px; color: color-mix(in oklab,var(--home-terracotta) 62%,var(--home-bg)); }
 .sahl-sample-grid header b { font-size: .82rem; color: var(--home-bg); }
