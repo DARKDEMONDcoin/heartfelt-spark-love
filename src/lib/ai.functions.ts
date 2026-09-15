@@ -976,71 +976,82 @@ export async function runEmployeeTurn(
 
     emit({ type: "step", label: "أحفظ الرد والمخرجات في مساحتك" });
 
-    const { data: assistantRow, error: assistantError } = await supabase
-      .from("messages")
-      .insert({
-        workspace_id: data.workspaceId,
-        employee_id: data.employeeId,
-        role: "assistant",
-        body: reply,
-        conversation_id: data.conversationId,
-      })
-      .select()
-      .single();
-    if (assistantError) throw new Error(assistantError.message);
+    // ذاكرة القرارات تُستخلص بالتوازي مع الحفظ بدل أن تُضاف إلى زمن انتظار المستخدم.
+    const decisionsTask: Promise<number> =
+      reply.length > 200
+        ? import("./decisions.server")
+            .then(async ({ extractDecisions, recordDecisions }) =>
+              recordDecisions(supabase as never, {
+                workspaceId: data.workspaceId,
+                employeeId: data.employeeId,
+                conversationId: data.conversationId,
+                drafts: await extractDecisions(data.message, reply),
+              }),
+            )
+            .catch((error: unknown) => {
+              console.warn(
+                "[decisions] capture skipped:",
+                error instanceof Error ? error.message : error,
+              );
+              return 0;
+            })
+        : Promise.resolve(0);
 
-    let createdTaskId: string | null = null;
-    for (const deliverable of deliverables) {
-      // صورة المخرج: المولّدة، وإلا صورة أرفقها المستخدم فقط — لا نُلصق صور الموقع تلقائياً.
-      const mediaUrl =
-        imageUrl ??
-        attachments.find((a) => a.type === "image")?.url ??
-        (wantsSiteImages ? (siteSuggestions[0]?.url ?? null) : null);
+    // صورة المخرج: المولّدة، وإلا صورة أرفقها المستخدم فقط — لا نُلصق صور الموقع تلقائياً.
+    const mediaUrl =
+      imageUrl ??
+      attachments.find((a) => a.type === "image")?.url ??
+      (wantsSiteImages ? (siteSuggestions[0]?.url ?? null) : null);
 
-      const output = mediaUrl
-        ? `![${deliverable.title}](${mediaUrl})\n\n${deliverable.body!}`
-        : deliverable.body!;
-
-      const { data: task } = await supabase
-        .from("tasks")
+    // الرسالة والمخرجات تُحفظ في دفعة واحدة متوازية — خطة من ١٢ منشوراً كانت
+    // تنتظر ١٢ رحلة متسلسلة إلى قاعدة البيانات.
+    const [messageInsert, taskRows, savedDecisions] = await Promise.all([
+      supabase
+        .from("messages")
         .insert({
           workspace_id: data.workspaceId,
           employee_id: data.employeeId,
-          title: deliverable.title!,
-          detail: reply.slice(0, 400),
-          kind: deliverable.kind ?? persona.kind,
-          channel: deliverable.channel ?? persona.channel,
-          status: "review",
-          output,
-          scheduled: deliverable.scheduled ?? "بانتظار اعتمادك",
-          steps: [
-            { label: "فهم الطلب", state: "done" },
-            { label: "التنفيذ", state: "done" },
-            { label: "مراجعتك", state: "active" },
-            { label: "النشر", state: "todo" },
-          ],
+          role: "assistant",
+          body: reply,
+          conversation_id: data.conversationId,
         })
-        .select("id")
-        .single();
-      createdTaskId = createdTaskId ?? task?.id ?? null;
-    }
+        .select()
+        .single(),
+      Promise.all(
+        deliverables.map(async (deliverable) => {
+          const output = mediaUrl
+            ? `![${deliverable.title}](${mediaUrl})\n\n${deliverable.body!}`
+            : deliverable.body!;
+          const { data: task } = await supabase
+            .from("tasks")
+            .insert({
+              workspace_id: data.workspaceId,
+              employee_id: data.employeeId,
+              title: deliverable.title!,
+              detail: reply.slice(0, 400),
+              kind: deliverable.kind ?? persona.kind,
+              channel: deliverable.channel ?? persona.channel,
+              status: "review",
+              output,
+              scheduled: deliverable.scheduled ?? "بانتظار اعتمادك",
+              steps: [
+                { label: "فهم الطلب", state: "done" },
+                { label: "التنفيذ", state: "done" },
+                { label: "مراجعتك", state: "active" },
+                { label: "النشر", state: "todo" },
+              ],
+            })
+            .select("id")
+            .single();
+          return task?.id ?? null;
+        }),
+      ),
+      decisionsTask,
+    ]);
+    const { data: assistantRow, error: assistantError } = messageInsert;
+    if (assistantError) throw new Error(assistantError.message);
+    const createdTaskId = taskRows.find((id): id is string => Boolean(id)) ?? null;
 
-    // ذاكرة القرارات: نحفظ ما حُسم فعلاً في هذا التبادل كي لا يُعاد طرحه لاحقاً.
-    let savedDecisions = 0;
-    if (reply.length > 200) {
-      try {
-        const { extractDecisions, recordDecisions } = await import("./decisions.server");
-        const drafts = await extractDecisions(data.message, reply);
-        savedDecisions = await recordDecisions(supabase as never, {
-          workspaceId: data.workspaceId,
-          employeeId: data.employeeId,
-          conversationId: data.conversationId,
-          drafts,
-        });
-      } catch (error) {
-        console.warn("[decisions] capture skipped:", error instanceof Error ? error.message : error);
-      }
-    }
 
     return {
       qualityScore,
