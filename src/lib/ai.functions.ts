@@ -769,8 +769,6 @@ export async function runEmployeeTurn(
 
     // الصور تُولَّد فعلياً — لا يبقى المستخدم مع «برومبت» مكتوب فقط.
     // والمستخدم هو صاحب القرار: إيقاف · تلقائي · وصف يكتبه بنفسه (يُترجم حرفياً بلا إضافة).
-    let imageUrl: string | null = null;
-    
     const imageMode = data.imageMode ?? "auto";
     const userImagePrompt = data.imagePrompt?.trim() ?? "";
     const wantsImage =
@@ -781,8 +779,13 @@ export async function runEmployeeTurn(
           // طلب الصورة الصريح ينفّذه أي موظف؛ التوليد التلقائي يبقى للموظفين البصريين.
           (explicitImage || VISUAL_EMPLOYEES.has(data.employeeId)) &&
           attachments.every((a) => a.type !== "image");
-    if (wantsImage) {
-      try {
+    // توليد الصورة يبدأ الآن ويسير بالتوازي مع مراجعة الجودة — كانا متسلسلين فيضيفان
+    // نحو دقيقة كاملة على كل رد بصري.
+    const imageTask: Promise<string | null> = !wantsImage
+      ? Promise.resolve(null)
+      : (async (): Promise<string | null> => {
+          let imageUrl: string | null = null;
+          try {
         const { ownedHeroImage, extractImagePrompt, imageBrief, literalBrief, aspectSize } =
           await import("./image-gen.server");
         const fromField = deliverables
