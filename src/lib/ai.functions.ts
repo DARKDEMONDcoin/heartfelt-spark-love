@@ -168,6 +168,9 @@ export type TurnEvent =
   | { type: "reset" };
 
 export type TurnEmit = (event: TurnEvent) => void;
+
+/** مستقبل أحداث صامت: المسار العادي بلا بثّ. */
+const noEmit: TurnEmit = () => {};
 export type AskEmployeeInput = z.infer<typeof askEmployeeInput>;
 export type TurnContext = { supabase: SupabaseClient<Database> };
 
