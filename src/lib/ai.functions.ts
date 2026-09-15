@@ -843,6 +843,39 @@ export async function runEmployeeTurn(
     }
 
     reply = sanitizeActionClaims(reply, connected);
+    // منع التكرار: أحياناً يعيد النموذج نفس الفقرة مرتين (ملخص + مخرج) — نُبقي أول ظهور فقط.
+    reply = dedupeParagraphs(reply);
+
+    // حَكَم الجودة يعمل بالتوازي مع توليد الصورة: مراجعة إلزامية للمخرجات الطويلة
+    // وإصلاح واحد موجّه عند الرسوب، بلا إضافة أي انتظار فوق زمن الصورة.
+    const shouldJudge = intent === "work" && reply.length > 900;
+    if (shouldJudge) emit({ type: "step", label: "أراجع جودة المخرج قبل تسليمه لك" });
+    const judgeTask = !shouldJudge
+      ? Promise.resolve(null)
+      : import("./quality-judge.server")
+          .then(({ judgeAndImprove }) =>
+            judgeAndImprove({
+              employeeId: data.employeeId,
+              request: data.message,
+              output: reply,
+              criteria: qualityCriteria[data.employeeId] ?? [],
+              bannedWords: workspace.banned_words ?? [],
+            }),
+          )
+          .catch((error: unknown) => {
+            console.warn("[judge] skipped:", error instanceof Error ? error.message : error);
+            return null;
+          });
+
+    const [imageUrl, verdict] = await Promise.all([imageTask, judgeTask]);
+    let qualityScore: number | null = verdict?.score || null;
+    if (verdict?.revised) {
+      // مخرج واحد فقط: نجعل المهمة المحفوظة مطابقة تماماً لما يظهر في المحادثة.
+      if (deliverables.length === 1 && deliverables[0]?.body) {
+        deliverables[0]!.body = verdict.output;
+      }
+      reply = verdict.output;
+    }
 
     const footers = toolBlocks.map((t) => t.footer).filter(Boolean);
     if (footers.length) reply = `${reply.trim()}\n\n> ${footers.join(" · ")}`;
