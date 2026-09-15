@@ -31050,3 +31050,19 @@ html { scroll-padding-top: 96px; }
   box-shadow: var(--shadow-card);
   border-radius: 20px !important;
 }
+
+/* ===== تجاوب الهواتف: منع تداخل الكلمات ===== */
+/* شارة «الفريق كاملًا» كانت تركب على وسم الخطة في الشاشات الضيّقة. */
+@media (max-width: 640px) {
+  .sahl-plan-grid article { padding-top: 22px; }
+  .sahl-plan-tag {
+    position: static;
+    inset: auto;
+    display: inline-block;
+    margin-bottom: 10px;
+    max-width: 100%;
+  }
+  .sahl-plan-grid article > small,
+  .sahl-plan-grid article > h3,
+  .sahl-plan-grid article > p { overflow-wrap: anywhere; }
+}
