@@ -838,7 +838,7 @@ function ChatView({
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages?.length, send.isPending, skillRun.isPending]);
+  }, [messages?.length, send.isPending, skillRun.isPending, liveText, liveStep]);
 
   // إبقاء التركيز في مربع الكتابة + تمدد تلقائي لارتفاع النص.
   useEffect(() => {
