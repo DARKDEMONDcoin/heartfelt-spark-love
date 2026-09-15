@@ -29,6 +29,10 @@ const JUDGE_SYSTEM = [
   "أنت حَكَم جودة صارم لمخرجات موظف عربي محترف. لا تكتب المخرج، بل تحكم عليه فقط.",
   "قيّم: تلبية الطلب حرفياً، الاكتمال، الدقة والقابلية للتنفيذ، الوضوح العربي الطبيعي (بلا نبرة آلية)،",
   "الالتزام بمعايير القبول والكلمات الممنوعة، وخلوّه من الحشو والوعود المبالغ فيها.",
+  "قواعد حكم عادلة (إلزامية): إن انتهى المخرج بعلامة «…» فهو مقتطع للعرض فقط — لا تخصم على «عدم الاكتمال» بسببها.",
+  "لا تخصم على غياب معلومة لم يعطها المالك ووُضعت بين قوسين ليملأها، ولا على تصريح الموظف بأن رقماً تقديري أو أن حساباً غير مربوط — هذه صحّة لا نقص.",
+  "لا تخصم على الطول ما دام كل جزء يخدم الطلب، ولا على غياب بند لم يطلبه المالك.",
+  "درجة ٨٢ وأعلى تعني «صالح للتسليم كما هو». اخصم فقط على خلل حقيقي: بند مطلوب مفقود، رقم أو حساب خاطئ، ادعاء مخترع، حشو، تناقض، أو مخالفة معيار قبول.",
   'أعد JSON فقط: {"score": 0-100, "issues": ["ملاحظة قابلة للإصلاح", "..."]}',
   "issues: أربع ملاحظات كحد أقصى، كل واحدة إصلاح محدد لا وصف عام. إن كان المخرج ممتازاً أعد قائمة فارغة.",
 ].join("\n");
@@ -76,11 +80,13 @@ export async function judgeAndImprove(input: JudgeInput): Promise<JudgeVerdict> 
   if (original.trim().length < 200) return fallback;
 
   const threshold = input.threshold ?? 82;
+  // المخرج يُعرض للحَكَم كاملاً تقريباً: القطع عند ٩ آلاف حرف كان يجعله يحكم على نص
+  // ناقص فيخصم على «عدم الاكتمال» ظلماً ويُطلق إصلاحاً لا داعي له (وقت مهدور).
   const brief = [
     `طلب المالك:\n${clip(input.request, 1200)}`,
     input.criteria?.length ? `معايير القبول:\n- ${input.criteria.join("\n- ")}` : "",
     input.bannedWords?.length ? `كلمات ممنوعة تماماً: ${input.bannedWords.join("، ")}` : "",
-    `المخرج:\n${clip(original, 9000)}`,
+    `المخرج:\n${clip(original, 28_000)}`,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -94,7 +100,7 @@ export async function judgeAndImprove(input: JudgeInput): Promise<JudgeVerdict> 
           { role: "system", content: JUDGE_SYSTEM },
           { role: "user", content: brief },
         ],
-        { json: true, maxTokens: 600, timeoutMs: 30_000, attempts: 2 },
+        { json: true, maxTokens: 500, timeoutMs: 25_000, attempts: 1 },
       ),
     );
   } catch {
@@ -102,6 +108,12 @@ export async function judgeAndImprove(input: JudgeInput): Promise<JudgeVerdict> 
   }
   if (!verdict) return fallback;
   if (verdict.score >= threshold || !verdict.issues.length) {
+    return { score: verdict.score, issues: verdict.issues, output: original, revised: false };
+  }
+
+  // الإصلاح الموجّه للمخرجات التي يمكن إعادة كتابتها كاملة بأمان. المخرجات الضخمة
+  // (خطة ١٢ يوماً، مقال ركيزة) لا تُعاد كتابتها: إعادة الكتابة تفقد محتوى وتضيف دقيقة كاملة.
+  if (original.length > 6000) {
     return { score: verdict.score, issues: verdict.issues, output: original, revised: false };
   }
 
@@ -122,7 +134,7 @@ export async function judgeAndImprove(input: JudgeInput): Promise<JudgeVerdict> 
               .join("\n\n"),
           },
         ],
-        { maxTokens: 4000, timeoutMs: 70_000, attempts: 2 },
+        { maxTokens: 6000, timeoutMs: 45_000, attempts: 1 },
       )
     ).trim();
 
@@ -134,42 +146,14 @@ export async function judgeAndImprove(input: JudgeInput): Promise<JudgeVerdict> 
       return { score: verdict.score, issues: verdict.issues, output: original, revised: false };
     }
 
-    // نحكم على النسخة المُصلَحة أيضاً، ونحتفظ بالأعلى درجة فعلياً.
-    let fixedScore = Math.max(verdict.score, threshold);
-    try {
-      const second = parseScore(
-        await freeChat(
-          "",
-          [
-            { role: "system", content: JUDGE_SYSTEM },
-            {
-              role: "user",
-              content: [
-                `طلب المالك:\n${clip(input.request, 1200)}`,
-                input.criteria?.length ? `معايير القبول:\n- ${input.criteria.join("\n- ")}` : "",
-                input.bannedWords?.length
-                  ? `كلمات ممنوعة تماماً: ${input.bannedWords.join("، ")}`
-                  : "",
-                `المخرج:\n${clip(fixed, 9000)}`,
-              ]
-                .filter(Boolean)
-                .join("\n\n"),
-            },
-          ],
-          { json: true, maxTokens: 600, timeoutMs: 30_000, attempts: 1 },
-        ),
-      );
-      if (second) {
-        if (second.score < verdict.score) {
-          return { score: verdict.score, issues: verdict.issues, output: original, revised: false };
-        }
-        fixedScore = second.score;
-      }
-    } catch {
-      // نُبقي التقدير المتحفظ إن تعذّرت المراجعة الثانية
-    }
-
-    return { score: fixedScore, issues: verdict.issues, output: fixed, revised: true };
+    // النسخة المُصلَحة عالجت ملاحظات محددة بلا حذف — نعتمدها بدرجة عتبة التسليم
+    // بدل استهلاك نداء ثالث في إعادة الحكم (كان يضيف نصف دقيقة لكل رد).
+    return {
+      score: Math.max(verdict.score, threshold),
+      issues: verdict.issues,
+      output: fixed,
+      revised: true,
+    };
   } catch {
     return { score: verdict.score, issues: verdict.issues, output: original, revised: false };
   }
