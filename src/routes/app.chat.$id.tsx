@@ -65,6 +65,7 @@ import { ActionPanel } from "@/components/app/ActionPanel";
 import { UserAvatar } from "@/components/app/UserAvatar";
 import { BrandVoiceExtractor } from "@/components/app/BrandVoiceExtractor";
 import { Portrait } from "@/components/site/Portrait";
+import { streamEmployeeTurn } from "@/lib/employee-stream";
 import {
   MediaStudio,
   type Attachment,
@@ -624,6 +625,9 @@ function ChatView({
     if (prefill) setDraft(prefill);
   }, [prefill]);
   const [pending, setPending] = useState<string | null>(null);
+  /** البثّ الحقيقي: المرحلة التي ينفّذها الموظف الآن + نص ردّه وهو يُكتب. */
+  const [liveStep, setLiveStep] = useState<string | null>(null);
+  const [liveText, setLiveText] = useState("");
   const [savedTask, setSavedTask] = useState(false);
   /** طلب ربط سياقي: يظهر فقط عندما تحتاج المهمة الحالية حساباً غير مربوط. */
   const [needsConnection, setNeedsConnection] = useState<{
@@ -726,26 +730,53 @@ function ChatView({
           : conversationId;
       if (startingNewConversation || !conversationId) setConversationId(activeConversationId);
       setStartingNewConversation(false);
-      const result = await ask({
-        data: {
-          workspaceId: workspace!.id,
-          employeeId: id,
-          conversationId: activeConversationId,
-          message,
-          attachments,
-          imageMode,
-          imagePrompt: imagePrompt.trim() || undefined,
-          imageAspect: aspect,
-          postLength,
-        },
-      });
-      return { result, activeConversationId };
+      const payload = {
+        workspaceId: workspace!.id,
+        employeeId: id,
+        conversationId: activeConversationId,
+        message,
+        attachments,
+        imageMode,
+        imagePrompt: imagePrompt.trim() || undefined,
+        imageAspect: aspect,
+        postLength,
+      };
+
+      // البثّ الحقيقي: مراحل التنفيذ الفعلية ثم نص الرد وهو يُكتب.
+      // الأسئلة والدردشة لا تبثّ شيئاً — تصل كاملة مرة واحدة.
+      // لا نعيد الطلب إن كان التنفيذ قد بدأ فعلاً — كي لا تتكرر الرسالة مرتين.
+      let started = false;
+      try {
+        const result = await streamEmployeeTurn(payload, {
+          onStep: (label) => {
+            started = true;
+            if (!cancelledRef.current) setLiveStep(label);
+          },
+          onDelta: (text) => {
+            started = true;
+            if (!cancelledRef.current) setLiveText((prev) => prev + text);
+          },
+          onReset: () => setLiveText(""),
+        });
+        return { result, activeConversationId };
+      } catch (streamError) {
+        if (started) throw streamError;
+        // تعذّر بدء البثّ (شبكة/جلسة): نُنفّذ الطلب بالمسار العادي كي لا يُفقد.
+        console.warn("[chat] stream failed, falling back:", streamError);
+        setLiveStep(null);
+        setLiveText("");
+        const result = await ask({ data: payload });
+        return { result, activeConversationId };
+      }
     },
+
 
     onSuccess: async ({ result: res, activeConversationId }) => {
       await qc.invalidateQueries({
         queryKey: ["messages", workspace?.id, id, activeConversationId],
       });
+      setLiveStep(null);
+      setLiveText("");
       if (cancelledRef.current) {
         cancelledRef.current = false;
         return;
@@ -765,6 +796,8 @@ function ChatView({
     },
     onError: (e: unknown, message) => {
       setPending(null);
+      setLiveStep(null);
+      setLiveText("");
       if (cancelledRef.current) {
         cancelledRef.current = false;
         return;
@@ -805,7 +838,7 @@ function ChatView({
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages?.length, send.isPending, skillRun.isPending]);
+  }, [messages?.length, send.isPending, skillRun.isPending, liveText, liveStep]);
 
   // إبقاء التركيز في مربع الكتابة + تمدد تلقائي لارتفاع النص.
   useEffect(() => {
@@ -832,6 +865,8 @@ function ChatView({
 
     cancelledRef.current = false;
     setDraft("");
+    setLiveStep(null);
+    setLiveText("");
     setPending(body);
     send.mutate(body);
   };
@@ -843,6 +878,8 @@ function ChatView({
     if (pending) setDraft(pending);
     setPending(null);
     setPendingText(null);
+    setLiveStep(null);
+    setLiveText("");
     setError(null);
     send.reset();
     skillRun.reset();
@@ -1118,6 +1155,8 @@ function ChatView({
               <Thinking
                 memberId={member.id}
                 name={member.name}
+                step={liveStep}
+                text={liveText}
                 request={pending ?? pendingText ?? ""}
                 imageRequested={
                   imageMode !== "off" && (imageMode !== "auto" || Boolean(imagePrompt.trim()))
