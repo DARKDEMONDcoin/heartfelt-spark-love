@@ -15480,7 +15480,7 @@ section:has(> .integration-grid-wave) {
 @media (max-width: 720px) {
   .sahl-hero-layout > .sahl-float-note {
     position: absolute;
-    inset: 58% 0 auto auto;
+    inset: 63% 0 auto auto;
     width: 192px;
     height: 58px;
     min-height: 58px;
