@@ -1016,7 +1016,9 @@ export async function runEmployeeTurn(
       imageUrl,
       siteSuggestions,
     };
-  });
+  }
+}
+
 
 const skillInput = z.object({
   workspaceId: z.string().uuid(),
