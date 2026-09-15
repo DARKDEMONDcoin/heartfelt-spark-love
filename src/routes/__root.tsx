@@ -71,9 +71,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       // لون المتصفح موحّد على كل الأجهزة: نفس اللون في الوضع الفاتح والداكن،
       // ومع color-scheme: light حتى لا يقلبه المتصفح تلقائياً.
+      // وسم واحد بلا media: المتصفحات تُدمج الوسوم المتشابهة، وبقاء وسم مقيّد بـ media
+      // كان يجعل اللون يختفي على بعض الأجهزة.
       { name: "theme-color", content: BROWSER_THEME },
-      { name: "theme-color", content: BROWSER_THEME, media: "(prefers-color-scheme: light)" },
-      { name: "theme-color", content: BROWSER_THEME, media: "(prefers-color-scheme: dark)" },
       { name: "color-scheme", content: "light" },
       { name: "msapplication-TileColor", content: BROWSER_THEME },
       { name: "apple-mobile-web-app-capable", content: "yes" },
