@@ -17,9 +17,7 @@ import {
   researchFor,
 } from "@/lib/nour-run.server";
 import { employeeDirectory, sharedSystemBlocks, type EmployeeId } from "@/lib/team-knowledge";
-import { adsPlaybookBlock as adsPlaybook, isAdsRequest as adsPlaybookIsRelevant } from "@/lib/ads-playbook";
-import { socialPlaybookBlock } from "@/lib/social-playbook";
-import { seoPlaybookBlock } from "@/lib/seo-playbook";
+import { playbookFor } from "@/lib/playbooks";
 
 type Deliverable = {
   title?: string;
