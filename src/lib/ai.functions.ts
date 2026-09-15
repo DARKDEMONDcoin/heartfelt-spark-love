@@ -462,11 +462,7 @@ export async function runEmployeeTurn(
         ? `كلمات ممنوعة تماماً: ${workspace.banned_words.join("، ")}.`
         : "",
       craft[data.employeeId] ? `## معايير حِرفتك\n${craft[data.employeeId]}` : "",
-      data.employeeId === "sonny" ? socialPlaybookBlock : "",
-      data.employeeId === "sonny" || ((data.employeeId === "adam" || data.employeeId === "dana") && adsPlaybookIsRelevant(data.message))
-        ? adsPlaybook()
-        : "",
-      data.employeeId === "nour" ? seoPlaybookBlock : "",
+      playbookFor(data.employeeId, data.message),
       sirajMemory,
       nourMemory,
       decisionsMemory,
