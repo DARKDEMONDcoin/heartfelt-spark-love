@@ -799,6 +799,9 @@ export const askEmployee = createServerFn({ method: "POST" })
     if (imageUrl) {
       const alt = (deliverables[0]?.title ?? "الصورة المولّدة").slice(0, 120);
       reply = `${reply.trim()}\n\n![${alt}](${imageUrl})`;
+    } else if (explicitImage) {
+      // طلب صورة صريح ولم ينجح التوليد: نصرّح بذلك بدل ترك المستخدم مع وصف نصي فقط.
+      reply = `${reply.trim()}\n\n> تعذّر توليد الصورة الآن. أعد الطلب بعد لحظات أو اكتب وصف الصورة بنفسك من زر الصورة في مربع الإرسال.`;
     }
 
     if (research.used.length) {
