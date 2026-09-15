@@ -769,8 +769,6 @@ export async function runEmployeeTurn(
 
     // الصور تُولَّد فعلياً — لا يبقى المستخدم مع «برومبت» مكتوب فقط.
     // والمستخدم هو صاحب القرار: إيقاف · تلقائي · وصف يكتبه بنفسه (يُترجم حرفياً بلا إضافة).
-    let imageUrl: string | null = null;
-    
     const imageMode = data.imageMode ?? "auto";
     const userImagePrompt = data.imagePrompt?.trim() ?? "";
     const wantsImage =
@@ -781,8 +779,13 @@ export async function runEmployeeTurn(
           // طلب الصورة الصريح ينفّذه أي موظف؛ التوليد التلقائي يبقى للموظفين البصريين.
           (explicitImage || VISUAL_EMPLOYEES.has(data.employeeId)) &&
           attachments.every((a) => a.type !== "image");
-    if (wantsImage) {
-      try {
+    // توليد الصورة يبدأ الآن ويسير بالتوازي مع مراجعة الجودة — كانا متسلسلين فيضيفان
+    // نحو دقيقة كاملة على كل رد بصري.
+    const imageTask: Promise<string | null> = !wantsImage
+      ? Promise.resolve(null)
+      : (async (): Promise<string | null> => {
+          let imageUrl: string | null = null;
+          try {
         const { ownedHeroImage, extractImagePrompt, imageBrief, literalBrief, aspectSize } =
           await import("./image-gen.server");
         const fromField = deliverables
@@ -821,10 +824,12 @@ export async function runEmployeeTurn(
             aspectSize(data.imageAspect ?? "landscape"),
           );
         }
-      } catch (error) {
-        console.error("[chat] image generation failed:", error);
-      }
-    }
+          } catch (error) {
+            console.error("[chat] image generation failed:", error);
+          }
+          return imageUrl;
+        })();
+
 
     // مخرج واحد جاهز للنشر: نص المنشور نفسه هو أهم ما يراه المستخدم — نضعه في صدر الرد
     // ونضع تعليق الموظف بعده خلف فاصل، حتى تلتقطه لوحة النشر نظيفاً بلا كلام موظف.
@@ -838,6 +843,39 @@ export async function runEmployeeTurn(
     }
 
     reply = sanitizeActionClaims(reply, connected);
+    // منع التكرار: أحياناً يعيد النموذج نفس الفقرة مرتين (ملخص + مخرج) — نُبقي أول ظهور فقط.
+    reply = dedupeParagraphs(reply);
+
+    // حَكَم الجودة يعمل بالتوازي مع توليد الصورة: مراجعة إلزامية للمخرجات الطويلة
+    // وإصلاح واحد موجّه عند الرسوب، بلا إضافة أي انتظار فوق زمن الصورة.
+    const shouldJudge = intent === "work" && reply.length > 900;
+    if (shouldJudge) emit({ type: "step", label: "أراجع جودة المخرج قبل تسليمه لك" });
+    const judgeTask = !shouldJudge
+      ? Promise.resolve(null)
+      : import("./quality-judge.server")
+          .then(({ judgeAndImprove }) =>
+            judgeAndImprove({
+              employeeId: data.employeeId,
+              request: data.message,
+              output: reply,
+              criteria: qualityCriteria[data.employeeId] ?? [],
+              bannedWords: workspace.banned_words ?? [],
+            }),
+          )
+          .catch((error: unknown) => {
+            console.warn("[judge] skipped:", error instanceof Error ? error.message : error);
+            return null;
+          });
+
+    const [imageUrl, verdict] = await Promise.all([imageTask, judgeTask]);
+    let qualityScore: number | null = verdict?.score || null;
+    if (verdict?.revised) {
+      // مخرج واحد فقط: نجعل المهمة المحفوظة مطابقة تماماً لما يظهر في المحادثة.
+      if (deliverables.length === 1 && deliverables[0]?.body) {
+        deliverables[0]!.body = verdict.output;
+      }
+      reply = verdict.output;
+    }
 
     const footers = toolBlocks.map((t) => t.footer).filter(Boolean);
     if (footers.length) reply = `${reply.trim()}\n\n> ${footers.join(" · ")}`;
@@ -934,103 +972,86 @@ export async function runEmployeeTurn(
       reply = `${reply.trim()}\n\n### 📸 صور من موقعك تصلح لهذا المحتوى\n\n${gallery}\n\nاختر أي صورة منها بدل الصورة المولّدة — كلها صور حقيقية من موقعك.`;
     }
 
-    // منع التكرار: أحياناً يعيد النموذج نفس الفقرة مرتين (ملخص + مخرج) — نُبقي أول ظهور فقط.
-    reply = dedupeParagraphs(reply);
-
-    // حَكَم الجودة: مراجعة إلزامية للمخرجات الطويلة قبل أن تراها — وإصلاح واحد موجّه عند الرسوب.
-    let qualityScore: number | null = null;
-    if (intent === "work" && reply.length > 900) {
-      emit({ type: "step", label: "أراجع جودة المخرج قبل تسليمه لك" });
-      try {
-        const { judgeAndImprove } = await import("./quality-judge.server");
-        const verdict = await judgeAndImprove({
-          employeeId: data.employeeId,
-          request: data.message,
-          output: reply,
-          criteria: qualityCriteria[data.employeeId] ?? [],
-          bannedWords: workspace.banned_words ?? [],
-        });
-        qualityScore = verdict.score || null;
-        if (verdict.revised) {
-          // مخرج واحد فقط: نجعل المهمة المحفوظة مطابقة تماماً لما يظهر في المحادثة.
-          if (deliverables.length === 1 && deliverables[0]?.body) {
-            deliverables[0]!.body = verdict.output;
-          }
-          reply = verdict.output;
-        }
-      } catch (error) {
-        console.warn("[judge] skipped:", error instanceof Error ? error.message : error);
-      }
-    }
 
 
     emit({ type: "step", label: "أحفظ الرد والمخرجات في مساحتك" });
 
-    const { data: assistantRow, error: assistantError } = await supabase
-      .from("messages")
-      .insert({
-        workspace_id: data.workspaceId,
-        employee_id: data.employeeId,
-        role: "assistant",
-        body: reply,
-        conversation_id: data.conversationId,
-      })
-      .select()
-      .single();
-    if (assistantError) throw new Error(assistantError.message);
+    // ذاكرة القرارات تُستخلص بالتوازي مع الحفظ بدل أن تُضاف إلى زمن انتظار المستخدم.
+    const decisionsTask: Promise<number> =
+      reply.length > 200
+        ? import("./decisions.server")
+            .then(async ({ extractDecisions, recordDecisions }) =>
+              recordDecisions(supabase as never, {
+                workspaceId: data.workspaceId,
+                employeeId: data.employeeId,
+                conversationId: data.conversationId,
+                drafts: await extractDecisions(data.message, reply),
+              }),
+            )
+            .catch((error: unknown) => {
+              console.warn(
+                "[decisions] capture skipped:",
+                error instanceof Error ? error.message : error,
+              );
+              return 0;
+            })
+        : Promise.resolve(0);
 
-    let createdTaskId: string | null = null;
-    for (const deliverable of deliverables) {
-      // صورة المخرج: المولّدة، وإلا صورة أرفقها المستخدم فقط — لا نُلصق صور الموقع تلقائياً.
-      const mediaUrl =
-        imageUrl ??
-        attachments.find((a) => a.type === "image")?.url ??
-        (wantsSiteImages ? (siteSuggestions[0]?.url ?? null) : null);
+    // صورة المخرج: المولّدة، وإلا صورة أرفقها المستخدم فقط — لا نُلصق صور الموقع تلقائياً.
+    const mediaUrl =
+      imageUrl ??
+      attachments.find((a) => a.type === "image")?.url ??
+      (wantsSiteImages ? (siteSuggestions[0]?.url ?? null) : null);
 
-      const output = mediaUrl
-        ? `![${deliverable.title}](${mediaUrl})\n\n${deliverable.body!}`
-        : deliverable.body!;
-
-      const { data: task } = await supabase
-        .from("tasks")
+    // الرسالة والمخرجات تُحفظ في دفعة واحدة متوازية — خطة من ١٢ منشوراً كانت
+    // تنتظر ١٢ رحلة متسلسلة إلى قاعدة البيانات.
+    const [messageInsert, taskRows, savedDecisions] = await Promise.all([
+      supabase
+        .from("messages")
         .insert({
           workspace_id: data.workspaceId,
           employee_id: data.employeeId,
-          title: deliverable.title!,
-          detail: reply.slice(0, 400),
-          kind: deliverable.kind ?? persona.kind,
-          channel: deliverable.channel ?? persona.channel,
-          status: "review",
-          output,
-          scheduled: deliverable.scheduled ?? "بانتظار اعتمادك",
-          steps: [
-            { label: "فهم الطلب", state: "done" },
-            { label: "التنفيذ", state: "done" },
-            { label: "مراجعتك", state: "active" },
-            { label: "النشر", state: "todo" },
-          ],
+          role: "assistant",
+          body: reply,
+          conversation_id: data.conversationId,
         })
-        .select("id")
-        .single();
-      createdTaskId = createdTaskId ?? task?.id ?? null;
-    }
+        .select()
+        .single(),
+      Promise.all(
+        deliverables.map(async (deliverable) => {
+          const output = mediaUrl
+            ? `![${deliverable.title}](${mediaUrl})\n\n${deliverable.body!}`
+            : deliverable.body!;
+          const { data: task } = await supabase
+            .from("tasks")
+            .insert({
+              workspace_id: data.workspaceId,
+              employee_id: data.employeeId,
+              title: deliverable.title!,
+              detail: reply.slice(0, 400),
+              kind: deliverable.kind ?? persona.kind,
+              channel: deliverable.channel ?? persona.channel,
+              status: "review",
+              output,
+              scheduled: deliverable.scheduled ?? "بانتظار اعتمادك",
+              steps: [
+                { label: "فهم الطلب", state: "done" },
+                { label: "التنفيذ", state: "done" },
+                { label: "مراجعتك", state: "active" },
+                { label: "النشر", state: "todo" },
+              ],
+            })
+            .select("id")
+            .single();
+          return task?.id ?? null;
+        }),
+      ),
+      decisionsTask,
+    ]);
+    const { data: assistantRow, error: assistantError } = messageInsert;
+    if (assistantError) throw new Error(assistantError.message);
+    const createdTaskId = taskRows.find((id): id is string => Boolean(id)) ?? null;
 
-    // ذاكرة القرارات: نحفظ ما حُسم فعلاً في هذا التبادل كي لا يُعاد طرحه لاحقاً.
-    let savedDecisions = 0;
-    if (reply.length > 200) {
-      try {
-        const { extractDecisions, recordDecisions } = await import("./decisions.server");
-        const drafts = await extractDecisions(data.message, reply);
-        savedDecisions = await recordDecisions(supabase as never, {
-          workspaceId: data.workspaceId,
-          employeeId: data.employeeId,
-          conversationId: data.conversationId,
-          drafts,
-        });
-      } catch (error) {
-        console.warn("[decisions] capture skipped:", error instanceof Error ? error.message : error);
-      }
-    }
 
     return {
       qualityScore,
