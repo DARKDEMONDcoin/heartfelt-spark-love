@@ -756,7 +756,7 @@ export async function runEmployeeTurn(
     // الصور تُولَّد فعلياً — لا يبقى المستخدم مع «برومبت» مكتوب فقط.
     // والمستخدم هو صاحب القرار: إيقاف · تلقائي · وصف يكتبه بنفسه (يُترجم حرفياً بلا إضافة).
     let imageUrl: string | null = null;
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    
     const imageMode = data.imageMode ?? "auto";
     const userImagePrompt = data.imagePrompt?.trim() ?? "";
     const wantsImage =
@@ -784,6 +784,7 @@ export async function runEmployeeTurn(
           Boolean(draft) ||
           deliverables.some((d) => d.body && d.body.length > 80);
         if (wantsVisual) {
+          emit({ type: "step", label: "أولّد الصورة المطلوبة الآن" });
           // وصف المستخدم يُحترم حرفياً؛ وإلا يُشتق الوصف من طلبه ومن المخرج نفسه.
           const prompt =
             imageMode === "manual"
