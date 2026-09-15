@@ -419,6 +419,15 @@ export async function runEmployeeTurn(
       })
       .join("\n");
 
+    // صاحب العمل: اسمه الأول ومسمّاه — حتى يخاطبه الموظف كزميل يعرفه لا كمستخدم مجهول.
+    const { data: ownerProfile } = await supabase
+      .from("profiles")
+      .select("full_name, job_title")
+      .eq("id", workspace.owner_id)
+      .maybeSingle();
+    const ownerFirstName =
+      (ownerProfile?.full_name ?? "").trim().split(/\s+/).filter(Boolean)[0] ?? null;
+
     // ذاكرة سِراج التشغيلية: صوت العلامة + قواعد مستخلصة من أداء الحساب + المجدول القادم.
     let sirajMemory = "";
     if (data.employeeId === "sonny") {
