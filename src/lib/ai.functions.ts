@@ -17,6 +17,7 @@ import {
   researchFor,
 } from "@/lib/nour-run.server";
 import { employeeDirectory, sharedSystemBlocks, type EmployeeId } from "@/lib/team-knowledge";
+import { employeeEdgeBlock } from "@/lib/employee-edge";
 import { playbookFor } from "@/lib/playbooks";
 
 type Deliverable = {
@@ -441,6 +442,18 @@ export async function runEmployeeTurn(
     const ownerFirstName =
       (ownerProfile?.full_name ?? "").trim().split(/\s+/).filter(Boolean)[0] ?? null;
 
+    // «اليوم الأول»: هل تحدّث معه هذا الموظف من قبل إطلاقاً في هذه المساحة؟
+    let firstEverTurn = false;
+    if ((history ?? []).length === 0) {
+      const { count: priorCount } = await supabase
+        .from("messages")
+        .select("id", { count: "exact", head: true })
+        .eq("workspace_id", data.workspaceId)
+        .eq("employee_id", data.employeeId)
+        .eq("role", "assistant");
+      firstEverTurn = (priorCount ?? 0) === 0;
+    }
+
     // ذاكرة سِراج التشغيلية: صوت العلامة + قواعد مستخلصة من أداء الحساب + المجدول القادم.
     let sirajMemory = "";
     if (data.employeeId === "sonny") {
@@ -480,6 +493,8 @@ export async function runEmployeeTurn(
       liveBlock,
       intentBlock(intent),
       coworkerVoiceBlock({
+        employeeId: data.employeeId,
+        firstEver: firstEverTurn,
         employeeName: persona.name,
         role: persona.role,
         userName: ownerFirstName,
@@ -489,6 +504,7 @@ export async function runEmployeeTurn(
         teamActivity,
       }),
       expertMindBlock(data.employeeId, intent),
+      intent === "work" ? employeeEdgeBlock(data.employeeId) : "",
       workspace.banned_words?.length
         ? `كلمات ممنوعة تماماً: ${workspace.banned_words.join("، ")}.`
         : "",
