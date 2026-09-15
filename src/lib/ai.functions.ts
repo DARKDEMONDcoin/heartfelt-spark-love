@@ -158,10 +158,33 @@ export const askEmployeeInput = z.object({
 /** الموظفون الذين تُولَّد لهم صورة فعلية عند وجود وصف بصري في الرد. */
 const VISUAL_EMPLOYEES = new Set(["dana", "sonny", "nour"]);
 
+/** حدث تقدّم حقيقي يُبثّ للمستخدم أثناء تنفيذ الطلب. */
+export type TurnEvent =
+  | { type: "step"; label: string }
+  | { type: "delta"; text: string }
+  | { type: "reset" };
+
+export type TurnEmit = (event: TurnEvent) => void;
+export type AskEmployeeInput = z.infer<typeof askEmployeeInput>;
+export type TurnContext = { supabase: SupabaseClient<Database> };
+
 export const askEmployee = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => input.parse(data))
-  .handler(async ({ data, context }) => {
+  .inputValidator((data: unknown) => askEmployeeInput.parse(data))
+  .handler(async ({ data, context }) =>
+    runEmployeeTurn(data, context as unknown as TurnContext, () => {}),
+  );
+
+/**
+ * دورة عمل الموظف الكاملة. تُستخدم من الشات العادي (بلا بثّ)
+ * ومن مسار البثّ الحقيقي (emit يسلّم مراحل التنفيذ والنص وهو يُكتب).
+ */
+export async function runEmployeeTurn(
+  data: AskEmployeeInput,
+  context: TurnContext,
+  emit: TurnEmit,
+) {
+  {
     // المفاتيح تُقرأ داخل freeChat من جدول app_secrets في Supabase.
     const apiKey = "";
 
