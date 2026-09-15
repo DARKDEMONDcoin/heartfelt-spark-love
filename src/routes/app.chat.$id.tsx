@@ -1155,6 +1155,8 @@ function ChatView({
               <Thinking
                 memberId={member.id}
                 name={member.name}
+                step={liveStep}
+                text={liveText}
                 request={pending ?? pendingText ?? ""}
                 imageRequested={
                   imageMode !== "off" && (imageMode !== "auto" || Boolean(imagePrompt.trim()))
