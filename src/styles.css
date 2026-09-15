@@ -184,6 +184,11 @@
   html {
     scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
+    /* واجهة فاتحة ثابتة: المتصفح لا يقلب الألوان ولا شريط العنوان. */
+    color-scheme: light;
+    background-color: var(--color-background);
+    /* لا تمدّد أفقي مهما طال المحتوى — clip لا يكسر position: sticky. */
+    overflow-x: clip;
   }
 
   body {
@@ -13087,6 +13092,35 @@ section:has(> .integration-grid-wave) {
   }
   .topbar-pill > small {
     display: none;
+  }
+}
+
+/* هواتف ضيّقة جداً (≤ 400px): أزرار الشريط لا تتداخل ولا تُسحق أبداً. */
+@media (max-width: 400px) {
+  .app-topbar {
+    padding-inline: 0.3rem;
+  }
+  .app-topbar-inner {
+    gap: 0.25rem;
+    padding: 0.3rem;
+  }
+  .app-topbar-inner > button,
+  .app-topbar-inner > div:last-child > button:last-child {
+    width: 2.4rem;
+    height: 2.4rem;
+    min-width: 2.4rem;
+  }
+  .chat-topbar-actions {
+    gap: 0.3rem;
+  }
+  .topbar-pill,
+  .chat-new-button,
+  .chat-topbar-actions > div > button {
+    width: 2.3rem;
+    height: 2.3rem;
+    min-width: 2.3rem;
+    min-height: 2.3rem;
+    flex: 0 0 auto;
   }
 }
 @media (max-width: 380px) {

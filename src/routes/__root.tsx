@@ -10,6 +10,9 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+
+/** لون واجهة المتصفح الرسمي لسهل — المصدر الوحيد لهذا اللون في المشروع. */
+export const BROWSER_THEME = "#9B741E";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { RegionProvider } from "@/hooks/use-region";
 import { Button } from "@/components/ui/button";
@@ -66,7 +69,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { name: "theme-color", content: "#9B741E" },
+      // لون المتصفح موحّد على كل الأجهزة: نفس اللون في الوضع الفاتح والداكن،
+      // ومع color-scheme: light حتى لا يقلبه المتصفح تلقائياً.
+      // وسم واحد بلا media: المتصفحات تُدمج الوسوم المتشابهة، وبقاء وسم مقيّد بـ media
+      // كان يجعل اللون يختفي على بعض الأجهزة.
+      { name: "theme-color", content: BROWSER_THEME },
+      { name: "color-scheme", content: "light" },
+      { name: "msapplication-TileColor", content: BROWSER_THEME },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
       { title: "سهل | فريق موظفين ذكاء اصطناعي لشركتك" },
       {
         name: "description",
@@ -89,6 +100,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       { rel: "icon", href: "/favicon.png", type: "image/png" },
+      { rel: "apple-touch-icon", href: "/favicon.png" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {

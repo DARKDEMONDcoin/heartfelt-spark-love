@@ -311,8 +311,10 @@ export const askEmployee = createServerFn({ method: "POST" })
       ) || data.message.length > 220;
 
     // نيّة الرسالة: عمل (مخرج جاهز) أم سؤال/دردشة يُجاب عليها فقط بلا فرض خدمات.
-    const { chatIntent, intentBlock } = await import("./chat-intent");
+    const { chatIntent, intentBlock, wantsImageRequest } = await import("./chat-intent");
     const intent = chatIntent(data.message);
+    /** طلب صورة صريح من المستخدم: تُولَّد صورة فعلية أياً كان الموظف. */
+    const explicitImage = intent === "work" && wantsImageRequest(data.message);
     // عقل الخبير: عمق التخصص + سؤال واحد بخيارات عند الغموض الجوهري فقط.
     const { expertMindBlock } = await import("./expert-mind");
 
@@ -476,6 +478,15 @@ export const askEmployee = createServerFn({ method: "POST" })
 
       intent === "work"
         ? "إن كان طلب المستخدم يحتاج صورة (تصميم، منشور بصري، صورة مقال، كرييتف) فاكتب وصفاً بصرياً إنجليزياً دقيقاً في الحقل image_prompt — وستُولَّد الصورة فعلياً وتُعرض للمستخدم؛ لا تكتفِ بوصفها في النص."
+        : "",
+      explicitImage
+        ? [
+            "## طلب صورة صريح (إلزامي في هذه الرسالة)",
+            "المستخدم طلب صورة/تصميماً فعلياً. الصورة **ستُولَّد وتُعرض له تحت ردك تلقائياً** من الحقل image_prompt.",
+            "اكتب في image_prompt وصفاً إنجليزياً واحداً غنياً وقابلاً للتنفيذ (الموضوع، الأسلوب، التكوين، الإضاءة، الألوان، الخلفية، نسبة الأبعاد، وأي نص يظهر داخل الصورة إن طلبه) بما يطابق طلبه ونبرة العلامة.",
+            "ردّك النصي يبقى قصيراً: سطر يقول ما الذي صُمِّم ولماذا هذه الزاوية، وسطر «نص بديل:» بالعربية. ممنوع تماماً أن تكتب للمستخدم أنك «لا تستطيع توليد الصور» أو أن تعطيه البرومبت الإنجليزي في النص أو أن تصف الصورة في فقرات طويلة بدل توليدها.",
+            'إن لم يكن هناك منشور مطلوب فاجعل "deliverable" هكذا: {"title": "عنوان الصورة", "kind": "صورة", "channel": null, "body": "سطر عربي واحد يصف ما تظهره الصورة", "scheduled": null, "image_prompt": "…English prompt…"}.',
+          ].join("\n")
         : "",
       'أعد ردك بصيغة JSON فقط بالشكل: {"reply": "نص ردك للمستخدم بصيغة Markdown", "deliverable": {"title": "عنوان المخرج", "kind": "نوع المخرج", "channel": "المنصة", "body": "نص المخرج الجاهز", "scheduled": "متى يُنفّذ", "image_prompt": "English visual prompt or null"} , "needs_connection": {"provider": "معرّف المنصة مثل instagram أو wordpress أو search-console", "reason": "سبب من 8 كلمات مرتبط بهذه المهمة"} }',
       'ممنوع تماماً ابتكار بنية JSON أخرى. إن طلب المستخدم عدة مخرجات (خطة أسبوع، عدة منشورات، عدة منصات) فاستخدم مصفوفة "deliverables": [ {نفس حقول deliverable}, … ] بدل deliverable، واجعل "reply" ملخصاً بالعربية للخطة (المحاور، التوزيع، مؤشرات القياس) — ولا تضع JSON داخل reply أو داخل body إطلاقاً.',
@@ -722,7 +733,8 @@ export const askEmployee = createServerFn({ method: "POST" })
         ? userImagePrompt.length > 2
         : imageMode !== "off" &&
           intent === "work" &&
-          VISUAL_EMPLOYEES.has(data.employeeId) &&
+          // طلب الصورة الصريح ينفّذه أي موظف؛ التوليد التلقائي يبقى للموظفين البصريين.
+          (explicitImage || VISUAL_EMPLOYEES.has(data.employeeId)) &&
           attachments.every((a) => a.type !== "image");
     if (wantsImage) {
       try {
@@ -736,6 +748,8 @@ export const askEmployee = createServerFn({ method: "POST" })
           extractImagePrompt(`${reply}\n${deliverables.map((d) => d.body ?? "").join("\n")}`);
         const wantsVisual =
           imageMode === "manual" ||
+          // طلب صريح للصورة: نولّدها دائماً حتى لو لم يُرجع النموذج وصفاً بصرياً.
+          explicitImage ||
           Boolean(draft) ||
           deliverables.some((d) => d.body && d.body.length > 80);
         if (wantsVisual) {
@@ -785,6 +799,9 @@ export const askEmployee = createServerFn({ method: "POST" })
     if (imageUrl) {
       const alt = (deliverables[0]?.title ?? "الصورة المولّدة").slice(0, 120);
       reply = `${reply.trim()}\n\n![${alt}](${imageUrl})`;
+    } else if (explicitImage) {
+      // طلب صورة صريح ولم ينجح التوليد: نصرّح بذلك بدل ترك المستخدم مع وصف نصي فقط.
+      reply = `${reply.trim()}\n\n> تعذّر توليد الصورة الآن. أعد الطلب بعد لحظات أو اكتب وصف الصورة بنفسك من زر الصورة في مربع الإرسال.`;
     }
 
     if (research.used.length) {
