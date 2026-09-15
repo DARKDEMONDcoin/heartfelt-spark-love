@@ -15427,9 +15427,11 @@ section:has(> .integration-grid-wave) {
 .sahl-hero-layout > .sahl-float-note {
   position: absolute;
   z-index: 20;
+  inset: auto;
   top: 54px;
-  left: 0;
+  left: calc(50% - 232px);
   width: 232px;
+  height: 64px;
   min-width: 0;
   min-height: 64px;
   padding: 11px 13px;
@@ -15478,8 +15480,9 @@ section:has(> .integration-grid-wave) {
 @media (max-width: 720px) {
   .sahl-hero-layout > .sahl-float-note {
     position: absolute;
-    inset: auto 0 37% auto;
+    inset: 58% 0 auto auto;
     width: 192px;
+    height: 58px;
     min-height: 58px;
     margin: 0;
     padding: 9px 10px;
@@ -31177,20 +31180,3 @@ html { scroll-padding-top: 96px; }
   color: hsl(var(--primary));
 }
 
-/* Keep the approval notification attached above the phone despite the legacy mobile rule. */
-@media (max-width: 720px) {
-  .sahl-hero-product { margin-top: 72px; }
-  .sahl-hero-product .sahl-float-note {
-    position: absolute;
-    inset: -20px auto auto 50%;
-    width: min(260px, 92vw);
-    min-width: 0;
-    min-height: 66px;
-    margin: 0;
-    padding: 9px 11px;
-    grid-template-columns: 32px minmax(0, 1fr);
-    background: color-mix(in oklab, var(--home-bg) 96%, var(--glass-tint));
-    transform: translateX(-50%);
-    animation: none;
-  }
-}
