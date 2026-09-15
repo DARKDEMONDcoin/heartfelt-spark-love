@@ -131,7 +131,7 @@ function harvestDeliverables(node: unknown, out: Deliverable[] = [], depth = 0):
   return out;
 }
 
-const input = z.object({
+export const askEmployeeInput = z.object({
   workspaceId: z.string().uuid(),
   employeeId: z.string().min(1),
   message: z.string().min(1).max(4000),
