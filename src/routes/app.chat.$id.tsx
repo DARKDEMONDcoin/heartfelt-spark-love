@@ -1064,7 +1064,11 @@ function ChatView({
                         )}
                       >
                         {isUser ? <p dir="auto">{m.body}</p> : <Markdown body={body} />}
-                        {!isUser && id === "nour" && workspace && m.body.length > 600 ? (
+                        {!isUser &&
+                        id === "nour" &&
+                        workspace &&
+                        m.body.length > 600 &&
+                        askedForPublishableOutput(lastUserBefore(arr, idx)) ? (
                           wpConnected ? (
                             <PublishToWordPress workspaceId={workspace.id} body={m.body} />
                           ) : (
