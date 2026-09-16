@@ -1082,6 +1082,7 @@ function ChatView({
                         id === "sonny" &&
                         workspace &&
                         !m.body.includes("(/app/tasks)") &&
+                        askedForPublishableOutput(lastUserBefore(arr, idx)) &&
                         looksPostable(m.body) ? (
                           <PublishPanel
                             workspaceId={workspace.id}
