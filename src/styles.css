@@ -11849,7 +11849,12 @@ section:has(> .integration-grid-wave) {
 .app-shell {
   position: relative;
   isolation: isolate;
-  overflow: clip;
+  /* لا overflow: clip — يمنع ثبات الشريط العلوي (sticky) أثناء التقليب على الهواتف. */
+}
+.app-shell > div > header.app-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
 }
 .app-shell > aside {
   position: sticky;
@@ -27101,7 +27106,12 @@ section:has(> .integration-grid-wave) {
 .app-shell {
   position: relative;
   isolation: isolate;
-  overflow: clip;
+  /* لا overflow: clip — يمنع ثبات الشريط العلوي (sticky) أثناء التقليب على الهواتف. */
+}
+.app-shell > div > header.app-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
 }
 .app-shell > aside {
   position: sticky;

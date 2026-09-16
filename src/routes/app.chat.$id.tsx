@@ -57,7 +57,7 @@ import { Thinking } from "@/components/app/Thinking";
 import { Markdown } from "@/components/app/Markdown";
 import { PublishPanel } from "@/components/app/PublishPanel";
 import { requestedPublishTargets } from "@/lib/platforms";
-import { isNonPostReply } from "@/lib/post-format";
+import { askedForPublishableOutput, isNonPostReply } from "@/lib/post-format";
 import { detectHandoff } from "@/lib/handoff";
 import { HandoffCard } from "@/components/app/HandoffCard";
 import { PublishToWordPress } from "@/components/app/PublishToWordPress";
@@ -1064,7 +1064,11 @@ function ChatView({
                         )}
                       >
                         {isUser ? <p dir="auto">{m.body}</p> : <Markdown body={body} />}
-                        {!isUser && id === "nour" && workspace && m.body.length > 600 ? (
+                        {!isUser &&
+                        id === "nour" &&
+                        workspace &&
+                        m.body.length > 600 &&
+                        askedForPublishableOutput(lastUserBefore(arr, idx)) ? (
                           wpConnected ? (
                             <PublishToWordPress workspaceId={workspace.id} body={m.body} />
                           ) : (
@@ -1082,6 +1086,7 @@ function ChatView({
                         id === "sonny" &&
                         workspace &&
                         !m.body.includes("(/app/tasks)") &&
+                        askedForPublishableOutput(lastUserBefore(arr, idx)) &&
                         looksPostable(m.body) ? (
                           <PublishPanel
                             workspaceId={workspace.id}

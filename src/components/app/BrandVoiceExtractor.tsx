@@ -86,13 +86,10 @@ export function BrandVoiceExtractor({
             <h2 className="font-display text-lg font-black">استخرج صوت علامتك تلقائيًا</h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
               نقرأ موقعك، نحلّل اللهجة والنبرة والمفردات، ونبني «دليل صوت العلامة» يلتزم به الفريق
-              كله فورًا — مجانًا.
+              كله فورًا.
             </p>
           </div>
         </div>
-        <span className="rounded-full bg-jade/12 px-3 py-1 text-xs font-bold text-jade">
-          مفتوح المصدر · بلا تكلفة
-        </span>
       </div>
 
       <form

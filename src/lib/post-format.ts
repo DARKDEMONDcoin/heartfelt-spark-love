@@ -111,6 +111,42 @@ const REFUSAL = [
   /ما\s+تخصص/u,
 ];
 
+/** عناوين يستخدمها الموظف قبل نص المنشور — نبدأ من بعدها. */
+const POST_LABEL =
+  /^\s*(?:#{1,6}\s*)?\**\s*(?:نص\s+المنشور|المنشور|الكابشن|نص\s+البوست|البوست|التغريدة)\s*\**\s*[:：]?\s*$/u;
+
+/** أسطر تعليق الموظف التي تبدأ كلاماً موجّهاً للمستخدم بعد المنشور. */
+const AFTER_POST =
+  /^\s*(?:#{1,6}\s*)?\**\s*(?:ملاحظة\s+للمستخدم|ما\s+عملته|اللي\s+عملته|لماذا\s+اخترت|ليه\s+اخترت|الخطوة\s+التالية|الخطوات\s+التالية|قرارك|قرار\s+واحد|المتبقي|الباقي|رأيي|تقرير\s+الأثر|المصادر?)\b/u;
+
+/**
+ * يستخرج نص المنشور وحده من رد الموظف: يبدأ بعد عنوان «نص المنشور» إن وُجد،
+ * ويتوقف عند فاصل الماركداون أو أول سطر تعليق موجّه للمستخدم.
+ */
+export function extractPostText(input: string | null | undefined): string {
+  if (!input) return "";
+  const lines = input.split("\n");
+  const labelAt = lines.findIndex((l) => POST_LABEL.test(l));
+  const start = labelAt >= 0 ? labelAt + 1 : 0;
+  const kept: string[] = [];
+  for (let i = start; i < lines.length; i++) {
+    const line = lines[i] ?? "";
+    if (/^\s*(?:---|\*\*\*|___)\s*$/.test(line) && kept.join("").trim().length > 40) break;
+    if (AFTER_POST.test(line)) break;
+    kept.push(line);
+  }
+  const body = sanitizePostBody(kept.join("\n"));
+  return body || sanitizePostBody(input);
+}
+
+/** هل طلب المستخدم فعلاً مخرجاً قابلاً للنشر (منشور/ريلز/مقال…)؟ */
+export function askedForPublishableOutput(request: string | null | undefined): boolean {
+  if (!request) return false;
+  return /(منشور|بوست|post|ريلز?|reel|ستور(?:ي|يز)|story|تغريدة|تويت|tweet|كابشن|caption|مقال|بلوج|بلوق|blog|انشر|أنشر|نشر|اعلان|إعلان|كاروسيل|carousel|محتوى)/iu.test(
+    request,
+  );
+}
+
 export function isNonPostReply(input: string | null | undefined): boolean {
   const text = sanitizePostBody(input);
   if (!text) return true;
