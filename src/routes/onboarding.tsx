@@ -8,11 +8,17 @@ import {
   Globe2,
   Loader2,
   Mail,
+  Megaphone,
   MessageSquareHeart,
+  MessagesSquare,
   PenLine,
+  Radar,
   Search,
+  ShoppingBag,
   Sparkles,
+  Star,
   Users,
+  Video,
 } from "lucide-react";
 
 import { useServerFn } from "@tanstack/react-start";
@@ -60,9 +66,15 @@ const tones = [
 
 const goals = [
   { id: "social", label: "محتوى يومي للسوشيال", hint: "أفكار ومنشورات جاهزة كل صباح", icon: MessageSquareHeart },
+  { id: "ads", label: "إعلانات ممولة", hint: "بناء الحملات وإدارة الميزانية والنتائج", icon: Megaphone },
   { id: "seo", label: "ظهور أعلى في جوجل", hint: "كلمات مفتاحية ومقالات تجلب زيارات", icon: Search },
   { id: "sales", label: "عملاء ومبيعات أكثر", hint: "متابعة العملاء وردود أسرع", icon: Users },
+  { id: "whatsapp", label: "ردود فورية على العملاء", hint: "واتساب والرسائل والتعليقات بلا تأخير", icon: MessagesSquare },
+  { id: "video", label: "فيديو وريلز وصور", hint: "تصميم وتوليد المحتوى البصري", icon: Video },
   { id: "email", label: "بريد ورسائل منتظمة", hint: "نشرات ورسائل متابعة", icon: Mail },
+  { id: "store", label: "مبيعات المتجر الإلكتروني", hint: "وصف المنتجات والعروض والسلات المتروكة", icon: ShoppingBag },
+  { id: "competitors", label: "متابعة المنافسين والسوق", hint: "ما يفعله منافسك وفرصك الحالية", icon: Radar },
+  { id: "reputation", label: "سمعة وتقييمات أفضل", hint: "تقييمات جوجل والردود على الشكاوى", icon: Star },
   { id: "reports", label: "تقارير تفهمها بسرعة", hint: "ملخص أسبوعي لأداء كل شيء", icon: BarChart3 },
   { id: "brand", label: "هوية وصوت ثابت", hint: "كل المخرجات بنفس النبرة", icon: PenLine },
 ];
